@@ -111,47 +111,129 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 |----|------|-------------|
 | 50100 | AI Invoice Extractor | Full access to all objects |
 
+## Workflow
+
+### 1. Upload Workflow (Batch Upload)
+
+```
+User clicks "Batch Upload Invoices" action
+    ↓
+"Select Files" button opens file dialog
+    ↓
+User selects one or more images (JPG/JPEG/PNG)
+    ↓
+For each file:
+    - Validate file extension
+    - Save image to Image Blob field
+    - Create Import Document Header record
+    - Set status to "Pending"
+    ↓
+Auto-start processing if concurrency available
+```
+
+### 2. Processing Workflow (Background)
+
+```
+Batch Processing Mgt checks for pending documents
+    ↓
+If concurrency slot available (< 3 processing):
+    - Start Batch API Worker
+    - Set status to "Processing"
+    ↓
+Batch API Worker:
+    - Read image from Image Blob
+    - Convert to Base64
+    - Call Qwen-VL API
+    - Parse JSON response
+    - Save extracted data to Import Document Header/Line
+    - Set status to "Ready" (success) or "Error" (failure)
+    ↓
+Process next pending document if available
+```
+
+### 3. Review & Approval Workflow
+
+```
+User opens "Import Document Queue"
+    ↓
+Select document with status "Ready"
+    ↓
+"Review & Edit" opens Invoice Preview page
+    ↓
+User can:
+    - View extracted data
+    - Edit fields (toggle edit mode)
+    - View original image in FactBox
+    - Click "Accept & Create Invoice"
+    ↓
+System validates:
+    - Vendor No. is specified
+    - Invoice No. is specified
+    - No duplicate vendor invoice no.
+    ↓
+Create Purchase Invoice:
+    - Create Purchase Header
+    - Create Purchase Lines (with Default G/L Account from setup)
+    - Update Import Document status to "Created"
+    - Set "Created Invoice No."
+    ↓
+Open created Purchase Invoice
+```
+
+### 4. Error Handling Workflow
+
+```
+If processing fails:
+    - Set Processing Status to "Error"
+    - Save error message to "Error Message" field
+    - User can view error in Import Document Queue
+    - User can "Retry" processing
+```
+
 ## Data Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER INTERFACE                            │
-│  Purchase Invoices Page → Upload Invoice Image Action            │
+│  Purchase Invoices Page → Batch Upload Invoices action           │
+│                         → View Import Queue action               │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      FILE HANDLING                               │
-│  - File upload dialog                                            │
+│  - File upload dialog (UploadIntoStream)                         │
 │  - Extension validation (JPG, JPEG, PNG)                         │
-│  - PDF rejection with helpful message                            │
 │  - MIME type detection                                           │
+│  - Save to Image Blob field                                      │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      IMAGE PROCESSING                            │
-│  - Import to Media field                                         │
-│  - Convert to Base64                                             │
-│  - Build JSON request payload                                    │
+│                      BATCH PROCESSING                            │
+│  Batch Processing Mgt Codeunit                                   │
+│  - Queue management with concurrency control (max 3)             │
+│  - Status tracking: Pending → Processing → Ready/Error           │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      AI SERVICE CALL                             │
 │  Qwen VL API Codeunit                                            │
-│  - HTTP POST to /chat/completions                                │
-│  - Include system prompt + base64 image                          │
-│  - Timeout handling (configurable)                               │
-│  - Error handling                                                │
+│  - Read Image Blob → Convert to Base64                           │
+│  - HTTP POST to {API Base URL}/chat/completions                  │
+│  - Request body: model, messages (system prompt + image)         │
+│  - Headers: Authorization: Bearer {API Key}                      │
+│  - Timeout handling (configurable, default 60s)                  │
+│  - Error handling with detailed messages                         │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      RESPONSE PROCESSING                         │
 │  - Parse JSON response                                           │
-│  - Extract content from choices[0].message.content               │
-│  - Clean markdown formatting                                     │
+│  - Navigate: choices[0].message.content                          │
+│  - Clean markdown formatting (```json ... ```)                   │
 │  - Validate JSON structure                                       │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
@@ -159,30 +241,40 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 ┌─────────────────────────────────────────────────────────────────┐
 │                      DATA EXTRACTION                             │
 │  Invoice Extraction Codeunit                                     │
-│  - Map JSON fields to buffer fields                              │
-│  - Lookup vendor by number or name                               │
-│  - Parse dates (ISO 8601 format)                                 │
-│  - Process line items array                                      │
+│  - Map JSON fields to Import Document fields                     │
+│  - Vendor lookup:                                                │
+│    1. By Vendor No. (exact match)                                │
+│    2. By Vendor Name (exact match)                               │
+│    3. By Vendor Name (partial match with @*...*)                 │
+│  - Parse dates (ISO 8601 format: YYYY-MM-DD)                     │
+│  - Process line items array to Import Document Line              │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      PREVIEW & REVIEW                            │
-│  Invoice Preview Page                                            │
-│  - Display header fields                                         │
-│  - Show line items in subform                                    │
-│  - Display original image in FactBox                             │
-│  - Toggle edit mode                                              │
+│  Invoice Preview Page (Card Page)                                │
+│  - Source Table: Import Document Header                          │
+│  - Editable: Toggle with "Edit Values" action                    │
+│  - Subform: Invoice Preview Subform V2 (Import Document Line)    │
+│  - FactBox: Invoice Image FactBox V2 (Image Blob display)        │
+│  - Locked when "Created Invoice No." is set                      │
 └─────────────────────────────┬───────────────────────────────────┘
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      INVOICE CREATION                            │
-│  - Validate required fields                                      │
-│  - Check for duplicate vendor invoice no.                        │
-│  - Create Purchase Header                                        │
-│  - Create Purchase Lines                                         │
-│  - Open created invoice                                          │
+│  Invoice Extraction Codeunit.CreateInvoiceFromImportDoc          │
+│  - Validate: Vendor No., Invoice No. required                    │
+│  - Check for duplicate Vendor Invoice No.                        │
+│  - Create Purchase Header (Document Type = Invoice)              │
+│  - Create Purchase Lines:                                        │
+│    - Type = G/L Account                                          │
+│    - No. = Default G/L Account from setup (if configured)        │
+│    - Description, Quantity, Unit Price, Amount from lines        │
+│  - If no lines: Create one line with total amount                │
+│  - Update Import Document: Status = Created, Created Invoice No. │
+│  - Open created Purchase Invoice                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -245,29 +337,79 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 ## Known Limitations
 
-1. **No PDF Support** - Users must convert PDFs to images externally
-2. **Single Image** - One invoice per upload (no batch processing)
-3. **No Auto-Post** - Invoices created as open, not posted
-4. **GL Account Default** - Lines use generic G/L Account type; user must specify account
-5. **Currency Limitation** - Currency must be specified; no automatic detection
+1. **No PDF Support** - Users must convert PDFs to images externally (planned for v2.0 with direct PDF-to-base64 conversion)
+2. **No Auto-Post** - Invoices created as open, not posted
+3. **GL Account Assignment** - Lines use Default G/L Account from setup; user may need to adjust
+4. **Single Currency** - Currency must be specified; no automatic detection
+5. **Manual Upload Only** - No automated import from cloud storage (Azure File Storage planned for v2.0)
+
+## Business Logic
+
+### Status Flow
+
+```
+Pending → Processing → Ready → Created
+   ↓          ↓         ↓
+   └──────────┴─────────┘→ Error
+```
+
+| Status | Description | Actions Available |
+|--------|-------------|-------------------|
+| Pending | Document uploaded, waiting for processing | View, Delete |
+| Processing | AI extraction in progress | View only |
+| Ready | Extraction complete, ready for review | Review & Edit, Create Invoice |
+| Created | Invoice already created from document | View Created Invoice only |
+| Error | Processing failed with error | View Error, Retry |
+| Discarded | Manually discarded by user | None |
+
+### Concurrency Control
+
+- Maximum 3 documents processed simultaneously
+- Additional documents queued automatically
+- Queue processed FIFO (First In, First Out)
+
+### Vendor Matching Logic
+
+1. **Exact Vendor No.** - If extracted VendorNo matches a Vendor record
+2. **Exact Name Match** - If Vendor Name matches exactly
+3. **Partial Name Match** - If Vendor Name contains extracted text (case-insensitive)
+4. **No Match** - User must manually select vendor in preview
+
+### Invoice Line Creation
+
+- If AI extracted lines: Create one Purchase Line per extracted line
+- If no lines extracted: Create one line with total amount
+- All lines use Default G/L Account from setup
+- User can modify G/L Account after creation
+
+### Duplicate Detection
+
+Before creating invoice, system checks:
+- Open Purchase Invoices (by Vendor No. + Vendor Invoice No.)
+- Posted Purchase Invoices (by Vendor No. + Vendor Invoice No.)
+
+If duplicate found: Error message displayed, creation blocked.
 
 ## Future Roadmap
 
 ### Version 2.0
 
-- PDF support via external conversion service
+- **Azure File Storage Import** - Connect to Azure File Storage for automated invoice import
+- **PDF Support** - Convert PDF to base64 and send directly to Qwen-VL for processing (no external conversion service needed)
 - Confidence scoring per extracted field
 - Highlight low-confidence fields for review
 - Configurable field mapping for non-standard invoices
 - Multi-page invoice support
+- Email integration (monitor inbox for invoice attachments)
 
 ### Version 3.0
 
 - Azure Document AI as alternative provider
 - Machine learning for vendor auto-matching
-- Historical pattern learning
+- Historical pattern learning for GL account suggestions
 - Integration with Continia Document Capture (optional)
 - Mobile app for camera capture
+- Automatic approval for high-confidence extractions
 
 ## Development Team
 
@@ -281,8 +423,14 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2024-03-10 | Initial release |
+| 1.0.0.10 | 2024-03-12 | Fixed SecretText field types, Media handling, Try/Catch syntax |
+| 1.0.0.11 | 2024-03-12 | Fixed URL construction for API calls |
+| 1.0.0.12 | 2024-03-12 | Replaced Tenant Media with Image Blob for license compliance |
+| 1.0.0.13 | 2024-03-12 | Fixed Base64 conversion, added better error messages |
+| 1.0.0.14 | 2024-03-12 | Added "Created Invoices" counter, removed Upload Images section |
+| 1.0.0.15 | 2024-03-12 | Locked preview for created invoices, added View Created Invoice action |
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2024-03-10
+**Document Version:** 1.1  
+**Last Updated:** 2024-03-12

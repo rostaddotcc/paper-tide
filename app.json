@@ -2,7 +2,7 @@
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "AI Invoice Extractor",
   "publisher": "Custom Solutions",
-  "version": "1.0.0.0",
+  "version": "1.0.0.18",
   "brief": "AI-driven OCR for purchase invoices using Qwen-VL",
   "description": "Extract invoice data from images using Qwen-VL AI with preview and approval workflow",
   "privacyStatement": "",

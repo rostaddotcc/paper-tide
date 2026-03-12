@@ -71,7 +71,7 @@ table 50101 "Temp Invoice Buffer"
             ValidateTableRelation = false;
             DataClassification = SystemMetadata;
         }
-        field(11; "Media ID"; Media)
+        field(11; "Media ID"; Guid)
         {
             Caption = 'Media ID';
             DataClassification = SystemMetadata;
@@ -144,7 +144,7 @@ table 50101 "Temp Invoice Buffer"
         AmountExclVAT: Decimal;
         VATAmount: Decimal;
         CurrencyCode: Code[10];
-        MediaRef: Media)
+        MediaId: Guid)
     begin
         "Vendor No." := VendorNo;
         "Vendor Name" := VendorName;
@@ -155,8 +155,8 @@ table 50101 "Temp Invoice Buffer"
         "Amount Excl. VAT" := AmountExclVAT;
         "VAT Amount" := VATAmount;
         "Currency Code" := CurrencyCode;
-        "Media ID" := MediaRef;
-        "Media Reference" := Format(MediaRef.MediaId());
+        "Media ID" := MediaId;
+        "Media Reference" := Format(MediaId);
     end;
 
     procedure AddLine(

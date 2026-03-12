@@ -17,24 +17,6 @@ page 50104 "Batch Upload"
                 InstructionalText = 'Upload one or more invoice images (JPG, JPEG, PNG). The AI will extract data from each image. You can review and edit each invoice before creating it.';
             }
 
-            group(UploadArea)
-            {
-                Caption = 'Upload Images';
-
-                field(DragDropArea; '')
-                {
-                    Caption = 'Drop files here or click to browse';
-                    ApplicationArea = All;
-                    Editable = false;
-                    ExtendedDatatype = RichContent;
-
-                    trigger OnAssistEdit()
-                    begin
-                        UploadFilesWithDialog();
-                    end;
-                }
-            }
-
             group(QueueStatus)
             {
                 Caption = 'Processing Queue';
@@ -65,6 +47,13 @@ page 50104 "Batch Upload"
                     ApplicationArea = All;
                     Editable = false;
                     Style = Unfavorable;
+                }
+                field(CreatedCount; GetCreatedCount())
+                {
+                    Caption = 'Created Invoices';
+                    ApplicationArea = All;
+                    Editable = false;
+                    Style = Favorable;
                 }
             }
         }
@@ -98,6 +87,20 @@ page 50104 "Batch Upload"
                 Promoted = true;
                 PromotedCategory = Process;
                 RunObject = page "Import Document List";
+            }
+            action(AISetup)
+            {
+                ApplicationArea = All;
+                Caption = 'AI Extraction Setup';
+                ToolTip = 'Configure AI extraction settings';
+                Image = Setup;
+                Promoted = true;
+                PromotedCategory = Process;
+
+                trigger OnAction()
+                begin
+                    Page.Run(Page::"AI Extraction Setup");
+                end;
             }
             action(ProcessPending)
             {
@@ -168,26 +171,23 @@ page 50104 "Batch Upload"
     local procedure ImportSingleFile(InStream: InStream; FileName: Text): Boolean
     var
         ImportDocHeader: Record "Import Document Header";
-        TempBlob: Codeunit "Temp Blob";
-        MediaOutStream: OutStream;
-        Media: Media;
+        OutStream: OutStream;
         MimeType: Text;
     begin
         // Determine MIME type
         MimeType := GetMimeType(FileName);
 
-        // Import to Media
-        TempBlob.CreateOutStream(MediaOutStream);
-        CopyStream(MediaOutStream, InStream);
-        TempBlob.CreateInStream(InStream);
-        Media.ImportStream(InStream, FileName, MimeType);
-
         // Create header record
         ImportDocHeader.Init();
         ImportDocHeader."File Name" := CopyStr(FileName, 1, 250);
-        ImportDocHeader."Media ID" := Media;
+        ImportDocHeader."Media ID" := CreateGuid();
         ImportDocHeader.Status := ImportDocHeader.Status::Pending;
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Pending;
+
+        // Save image to blob
+        ImportDocHeader."Image Blob".CreateOutStream(OutStream);
+        CopyStream(OutStream, InStream);
+
         ImportDocHeader.Insert(true);
 
         exit(true);
@@ -222,7 +222,7 @@ page 50104 "Batch Upload"
 
     local procedure UpdateStatusCounts()
     begin
-        HasPendingDocuments := (GetPendingCount() + GetProcessingCount() + GetReadyCount() + GetErrorCount()) > 0;
+        HasPendingDocuments := (GetPendingCount() + GetProcessingCount() + GetReadyCount() + GetErrorCount() + GetCreatedCount()) > 0;
     end;
 
     local procedure GetPendingCount(): Integer
@@ -255,6 +255,14 @@ page 50104 "Batch Upload"
         ImportDocHeader: Record "Import Document Header";
     begin
         ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Error);
+        exit(ImportDocHeader.Count());
+    end;
+
+    local procedure GetCreatedCount(): Integer
+    var
+        ImportDocHeader: Record "Import Document Header";
+    begin
+        ImportDocHeader.SetRange(Status, ImportDocHeader.Status::Created);
         exit(ImportDocHeader.Count());
     end;
 

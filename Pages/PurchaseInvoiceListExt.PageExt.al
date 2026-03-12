@@ -7,7 +7,7 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
             action(BatchUploadInvoices)
             {
                 ApplicationArea = All;
-                Caption = 'Batch Import Invoices';
+                Caption = 'Batch Upload Invoices';
                 ToolTip = 'Upload multiple invoice images and process them with AI extraction';
                 Image = Import;
                 Promoted = true;
@@ -53,14 +53,14 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
                     MimeType: Text;
                 begin
                     DialogTitle := 'Select Invoice Image';
-                    
+
                     // Upload file using BC's file upload
                     if not UploadIntoStream(DialogTitle, '', 'Image Files (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png', FileName, InStream) then
                         exit;
 
                     // Validate file extension
                     FileExtension := LowerCase(FileManagement.GetExtension(FileName));
-                    
+
                     if not IsValidImageExtension(FileExtension) then begin
                         ShowInvalidFileMessage(FileExtension);
                         exit;
@@ -105,13 +105,13 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
     var
         AISetup: Record "AI Extraction Setup";
         TempBuffer: Record "Temp Invoice Buffer";
-        QwenVLAPI: Codeunit "Qwen VL API";
         InvoiceExtraction: Codeunit "Invoice Extraction";
         ExtractedData: JsonObject;
-        Media: Media;
         TempBlob: Codeunit "Temp Blob";
         MediaOutStream: OutStream;
         ConfirmMessage: Text;
+        Dialog: Dialog;
+        MediaId: Guid;
     begin
         // Check setup
         if not AISetup.Get() then begin
@@ -128,39 +128,69 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
 
         // Confirm processing
         ConfirmMessage := StrSubstNo('Process invoice image "%1" with AI extraction?\n\nThis will:\n1. Upload the image to Qwen-VL AI\n2. Extract invoice data\n3. Show a preview for your review', FileName);
-        
+
         if not Confirm(ConfirmMessage, false) then
             exit;
 
         // Show processing dialog
         Dialog.Open('Processing invoice image...\\Please wait while the AI extracts data.');
 
-        try
-            // Import image to Media
-            TempBlob.CreateOutStream(MediaOutStream);
-            CopyStream(MediaOutStream, InStream);
-            TempBlob.CreateInStream(InStream);
-            
-            Media.ImportStream(InStream, FileName, MimeType);
+        // Import image to Media and process
+        TempBlob.CreateOutStream(MediaOutStream);
+        CopyStream(MediaOutStream, InStream);
+        TempBlob.CreateInStream(InStream);
 
-            // Call AI API
-            if not QwenVLAPI.ExtractFromImage(Media, ExtractedData) then begin
-                Dialog.Close();
-                Error('Failed to extract data from image. Please check your AI Extraction Setup and try again.');
-            end;
+        // Import to Media and get the MediaId
+        MediaId := ImportToMedia(InStream, FileName, MimeType);
 
+        if IsNullGuid(MediaId) then begin
             Dialog.Close();
+            Error('Failed to import image. Please try again.');
+        end;
 
-            // Parse and fill buffer
-            InvoiceExtraction.ParseAndFillBuffer(ExtractedData, Media, TempBuffer);
+        // Call AI API with error handling
+        if not ExtractFromImageWithDialogHandling(MediaId, ExtractedData, Dialog) then begin
+            Error('Failed to extract data from image. Please check your AI Extraction Setup and try again.');
+        end;
 
-            // Open preview page
-            TempBuffer.Get(1, 0); // Get header record
-            Page.Run(Page::"Invoice Preview", TempBuffer);
+        Dialog.Close();
 
-        catch
+        // Parse and fill buffer
+        InvoiceExtraction.ParseAndFillBuffer(ExtractedData, MediaId, TempBuffer);
+
+        // Open preview page
+        TempBuffer.Get(1, 0); // Get header record
+        Page.Run(Page::"Invoice Preview", TempBuffer);
+    end;
+
+    local procedure ImportToMedia(InStream: InStream; FileName: Text; MimeType: Text): Guid
+    var
+        ImportDocHeader: Record "Import Document Header";
+        OutStream: OutStream;
+        NewGuid: Guid;
+    begin
+        NewGuid := CreateGuid();
+
+        ImportDocHeader.Init();
+        ImportDocHeader."File Name" := CopyStr(FileName, 1, 250);
+        ImportDocHeader."Media ID" := NewGuid;
+        ImportDocHeader.Status := ImportDocHeader.Status::Pending;
+        ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Pending;
+        ImportDocHeader."Image Blob".CreateOutStream(OutStream);
+        CopyStream(OutStream, InStream);
+        ImportDocHeader.Insert(true);
+
+        exit(NewGuid);
+    end;
+
+    [TryFunction]
+    local procedure ExtractFromImageWithDialogHandling(MediaId: Guid; var ExtractedData: JsonObject; var Dialog: Dialog)
+    var
+        QwenVLAPI: Codeunit "Qwen VL API";
+    begin
+        if not QwenVLAPI.ExtractFromImage(MediaId, ExtractedData) then begin
             Dialog.Close();
-            Error('An error occurred while processing the image: %1', GetLastErrorText());
+            Error('Failed to extract data from image');
         end;
     end;
 }

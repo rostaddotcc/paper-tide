@@ -14,8 +14,6 @@ permissionset 50100 "AI Invoice Extractor"
         table "Import Document Line" = X,
         page "AI Extraction Setup" = X,
         page "Invoice Preview" = X,
-        page "Invoice Preview Subform" = X,
-        page "Invoice Image FactBox" = X,
         page "Batch Upload" = X,
         page "Import Document List" = X,
         page "Invoice Preview Subform V2" = X,

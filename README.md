@@ -5,13 +5,15 @@ A Per-Tenant Extension (PTE) for Business Central that uses AI (Qwen-VL) to extr
 ## Features
 
 - 🤖 **AI-Powered OCR** - Extract invoice data using Qwen-VL vision model
-- � **Batch Import** - Upload and process multiple invoice images simultaneously
+- 📦 **Batch Import** - Upload and process multiple invoice images simultaneously
 - ⚡ **Concurrency Control** - Process up to 3 images at once with automatic queue management
 - 📋 **Import Queue** - View and manage all imported documents with status tracking
 - 👁️ **Preview & Edit** - Review extracted data with original image in FactBox before creating
 - ⚙️ **Configurable** - Set up your own API endpoint, model, system prompt, and default G/L account
-- 🔒 **Secure** - API keys stored as SecretText (encrypted)
+- 🔒 **Secure** - API keys stored with masked display
 - 📊 **Status Tracking** - Track documents from Pending → Processing → Ready → Created
+- 🔍 **Duplicate Detection** - Prevent duplicate vendor invoice numbers
+- 🏢 **Vendor Matching** - Automatic vendor lookup by number or name
 
 ## Requirements
 
@@ -92,29 +94,60 @@ You can customize the system prompt in the setup page to match your specific inv
 
 ## Usage
 
-### Batch Import (Recommended)
+### Workflow Overview
+
+```
+Upload → Process (AI) → Review → Create Invoice
+```
+
+### 1. Batch Upload
 
 1. Navigate to **Purchase Invoices** page
-2. Click **"Batch Import Invoices"** in the ribbon
-3. Select JPG/PNG files (you will be prompted to upload each file in sequence)
-4. Files are queued and processed automatically (max 3 concurrent)
-5. Click **"View Import Queue"** to see all imported documents
-6. Review status: Pending → Processing → Ready → Created
+2. Click **"Batch Upload Invoices"** in the ribbon
+3. Click **"Select Files"** button
+4. Select one or more JPG/PNG files (you can upload multiple files in sequence)
+5. Files are automatically queued and processed (max 3 concurrent)
+6. The **Processing Queue** shows counts: Pending, Processing, Ready for Review, Errors, Created
 
-### Processing Individual Documents
+### 2. Monitor Processing
 
-1. In the **Import Document List**, find a document with status **"Ready"**
-2. Click on the row to open **Invoice Preview**
-3. Review extracted data with original image in the FactBox
-4. Click **"Edit Values"** to make corrections if needed
-5. Click **"Accept & Create Invoice"**
-6. The document status changes to **"Created"** and links to the new invoice
+- **Pending**: Waiting for processing slot
+- **Processing**: AI extraction in progress
+- **Ready for Review**: Extraction complete, ready for your review
+- **Errors**: Processing failed (hover to see error message)
+- **Created**: Invoice already created from this document
 
-### Legacy Single Upload
+### 3. Review & Edit
 
-For single invoice upload (deprecated in favor of batch):
-1. Navigate to **Purchase Invoices** page
-2. Use **"Upload Single Invoice"** (hidden by default)
+1. Click **"View Import Queue"** to see all documents
+2. Find a document with status **"Ready"**
+3. Click **"Review & Edit"** to open **Invoice Preview**
+4. Review extracted data:
+   - Header fields (Vendor, Invoice No, Dates, Amounts)
+   - Line items in the subform
+   - Original image in the FactBox on the right
+5. Click **"Edit Values"** to enable editing if corrections are needed
+6. Make corrections and fields will auto-save
+
+### 4. Create Invoice
+
+1. After review, click **"Accept & Create Invoice"**
+2. System validates:
+   - Vendor No. is specified
+   - Invoice No. is specified
+   - No duplicate vendor invoice number exists
+3. Purchase Invoice is created with:
+   - Header data from extracted information
+   - Lines from extracted line items (or one line with total if no lines)
+   - Default G/L Account from setup
+4. Document status changes to **"Created"**
+5. Created invoice opens automatically
+
+### 5. View Created Invoices
+
+- Documents with status **"Created"** cannot be edited or re-processed
+- Click **"View Created Invoice"** to open the purchase invoice
+- The **"Created Invoice No."** field shows the linked invoice number
 
 ### Supported File Formats
 
@@ -157,9 +190,19 @@ Mark Import Document as "Created"
 ### Status Flow
 
 ```
-Pending → Processing → Completed → Ready → Created
-                    ↘ Error (retryable)
+Pending → Processing → Ready → Created
+   ↓          ↓         ↓
+   └──────────┴─────────┘→ Error (retryable)
 ```
+
+| Status | Description |
+|--------|-------------|
+| **Pending** | Document uploaded, waiting for processing slot |
+| **Processing** | AI extraction in progress |
+| **Ready** | Extraction complete, ready for review |
+| **Created** | Invoice successfully created |
+| **Error** | Processing failed, can be retried |
+| **Discarded** | Manually discarded by user |
 
 ## Technical Details
 
@@ -183,33 +226,61 @@ Pending → Processing → Completed → Ready → Created
 ## Troubleshooting
 
 ### "Setup is not configured"
-- Go to AI Extraction Setup page
-- Fill in API Base URL and API Key
-- Click "Test Connection"
+- Go to **AI Extraction Setup** page (search for it)
+- Fill in **API Base URL** and **API Key**
+- Fill in **Model Name** (e.g., `qwen-vl-max`)
+- Click **"Test Connection"**
 
 ### "HTTP request failed"
 - Check your internet connection
-- Verify API key is valid
-- Ensure API Base URL is correct
-- Check timeout setting (increase if needed)
+- Verify API key is valid and not expired
+- Ensure API Base URL is correct (should end with `/v1`)
+- Check timeout setting (increase if needed, default 60s)
 
 ### "Invalid response from AI service"
 - AI response may not be valid JSON
 - Check system prompt formatting
 - Try with a clearer invoice image
+- Check that the image format is JPG or PNG
+
+### "Image Blob is empty"
+- The uploaded file may be corrupted
+- Try uploading the image again
+- Check that the file is not 0 bytes
+
+### "Import document not found"
+- The document may have been deleted
+- Check the Import Document Queue
+
+### "Invoice already created for this document"
+- The document has already been processed
+- View the created invoice using "View Created Invoice" action
 
 ### Extension won't publish
 - Ensure `allowHttpClientRequests` is enabled in extension settings
 - In Extension Management, click Configure → Allow HttpClient Requests
 
-## Future Enhancements (v2.0)
+### Cannot see AI Extraction Setup page
+- Ensure you have the **"AI Invoice Extractor"** permission set assigned
+- Go to Users → select your user → Permission Sets → add "AI Invoice Extractor"
 
-- [ ] PDF support via external conversion service
-- [ ] Auto-match vendor using fuzzy search
-- [ ] Support for multiple invoice languages
-- [ ] Batch processing of multiple images
-- [ ] Confidence scores per field
-- [ ] Manual field mapping for unknown formats
+## Future Enhancements
+
+### Version 2.0
+- [ ] **Azure File Storage Import** - Connect to Azure File Storage for automated invoice import
+- [ ] **PDF Support** - Convert PDF to base64 and send directly to Qwen-VL for processing
+- [ ] Confidence scores per extracted field
+- [ ] Highlight low-confidence fields for review
+- [ ] Configurable field mapping for non-standard invoices
+- [ ] Multi-page invoice support
+- [ ] Email integration (monitor inbox for invoice attachments)
+
+### Version 3.0
+- [ ] Azure Document AI as alternative provider
+- [ ] Machine learning for vendor auto-matching
+- [ ] Historical pattern learning for GL account suggestions
+- [ ] Mobile app for camera capture
+- [ ] Automatic approval for high-confidence extractions
 
 ## License
 
@@ -221,6 +292,7 @@ For issues or questions, contact your Business Central partner or development te
 
 ---
 
-**Version:** 1.0.0  
+**Version:** 1.0.0.15  
 **Compatible with:** Business Central 27.4+  
-**Runtime:** 14.0+
+**Runtime:** 14.0+  
+**Last Updated:** 2024-03-12

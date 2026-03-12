@@ -70,6 +70,39 @@ page 50101 "Invoice Preview"
                         Rec.Modify();
                     end;
                 }
+                field("Reference No."; Rec."Reference No.")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the reference number from the invoice';
+                    Editable = IsEditable;
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
+                field("Payment Terms Code"; Rec."Payment Terms Code")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the payment terms code';
+                    Editable = IsEditable;
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
+                field("Payment Method Code"; Rec."Payment Method Code")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the payment method code';
+                    Editable = IsEditable;
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
             }
 
             group(Amounts)
@@ -116,6 +149,42 @@ page 50101 "Invoice Preview"
                 Caption = 'Lines';
                 SubPageLink = "Entry No." = field("Entry No.");
                 Editable = IsEditable;
+            }
+
+            group(Metadata)
+            {
+                Caption = 'Document Information';
+                Editable = false;
+
+                field("File Name"; Rec."File Name")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the original file name';
+                }
+                field("Import DateTime"; Rec."Import DateTime")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies when the document was imported';
+                }
+                field("Imported By"; Rec."Imported By")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies who imported the document';
+                }
+                field("Processing Status"; Rec."Processing Status")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the current processing status';
+                    StyleExpr = ProcessingStatusStyle;
+                }
+                field("Error Message Display"; Rec."Error Message")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the error message if processing failed';
+                    Visible = HasError;
+                    Style = Unfavorable;
+                    MultiLine = true;
+                }
             }
         }
 
@@ -169,6 +238,24 @@ page 50101 "Invoice Preview"
                     CurrPage.Close();
                 end;
             }
+            action(ViewCreatedInvoice)
+            {
+                ApplicationArea = All;
+                Caption = 'View Created Invoice';
+                ToolTip = 'Open the created purchase invoice';
+                Image = Document;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                Enabled = PageLocked;
+                Visible = PageLocked;
+
+                trigger OnAction()
+                begin
+                    if Rec."Created Invoice No." <> '' then
+                        OpenPurchaseInvoice(Rec."Created Invoice No.");
+                end;
+            }
             action(ToggleEdit)
             {
                 ApplicationArea = All;
@@ -177,6 +264,7 @@ page 50101 "Invoice Preview"
                 Image = Edit;
                 Promoted = true;
                 PromotedCategory = Process;
+                Enabled = not PageLocked;
 
                 trigger OnAction()
                 begin
@@ -207,14 +295,45 @@ page 50101 "Invoice Preview"
 
     trigger OnOpenPage()
     begin
-        IsEditable := false;
-        CanCreateInvoice := (Rec.Status = Rec.Status::Ready) and (Rec."Created Invoice No." = '');
+        // Lock page if invoice already created
+        if Rec."Created Invoice No." <> '' then begin
+            IsEditable := false;
+            CanCreateInvoice := false;
+            PageLocked := true;
+            Message('This document has already been processed. Purchase Invoice %1 has been created.', Rec."Created Invoice No.");
+        end else begin
+            IsEditable := false;
+            CanCreateInvoice := (Rec.Status = Rec.Status::Ready);
+            PageLocked := false;
+        end;
         LoadAmounts();
     end;
 
     trigger OnAfterGetRecord()
     begin
-        CanCreateInvoice := (Rec.Status = Rec.Status::Ready) and (Rec."Created Invoice No." = '');
+        // Lock page if invoice already created
+        if Rec."Created Invoice No." <> '' then begin
+            CanCreateInvoice := false;
+            IsEditable := false;
+            PageLocked := true;
+        end else begin
+            CanCreateInvoice := (Rec.Status = Rec.Status::Ready);
+            PageLocked := false;
+        end;
+
+        // Set error visibility and processing status style
+        HasError := Rec."Processing Status" = Rec."Processing Status"::Error;
+        case Rec."Processing Status" of
+            Rec."Processing Status"::Error:
+                ProcessingStatusStyle := 'Unfavorable';
+            Rec."Processing Status"::Completed:
+                ProcessingStatusStyle := 'Favorable';
+            Rec."Processing Status"::Processing:
+                ProcessingStatusStyle := 'Strong';
+            else
+                ProcessingStatusStyle := 'None';
+        end;
+
         LoadAmounts();
     end;
 
@@ -318,4 +437,7 @@ page 50101 "Invoice Preview"
     var
         IsEditable: Boolean;
         CanCreateInvoice: Boolean;
+        PageLocked: Boolean;
+        HasError: Boolean;
+        ProcessingStatusStyle: Text;
 }

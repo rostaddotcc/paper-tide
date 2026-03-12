@@ -100,10 +100,33 @@ table 50102 "Import Document Header"
             DataClassification = CustomerContent;
             TableRelation = Currency;
         }
-        field(20; "Media ID"; Media)
+        field(20; "Media ID"; Guid)
         {
             Caption = 'Media ID';
             DataClassification = CustomerContent;
+        }
+        field(21; "Image Blob"; Blob)
+        {
+            Caption = 'Image Blob';
+            DataClassification = CustomerContent;
+            Subtype = Bitmap;
+        }
+        field(22; "Reference No."; Code[35])
+        {
+            Caption = 'Reference No.';
+            DataClassification = CustomerContent;
+        }
+        field(23; "Payment Terms Code"; Code[10])
+        {
+            Caption = 'Payment Terms Code';
+            DataClassification = CustomerContent;
+            TableRelation = "Payment Terms";
+        }
+        field(24; "Payment Method Code"; Code[10])
+        {
+            Caption = 'Payment Method Code';
+            DataClassification = CustomerContent;
+            TableRelation = "Payment Method";
         }
     }
 

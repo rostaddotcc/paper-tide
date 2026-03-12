@@ -4,7 +4,7 @@ codeunit 50101 "Invoice Extraction"
 
     procedure ParseAndFillBuffer(
         ExtractedData: JsonObject;
-        Media: Media;
+        MediaId: Guid;
         var TempBuffer: Record "Temp Invoice Buffer")
     var
         Vendor: Record Vendor;
@@ -69,7 +69,7 @@ codeunit 50101 "Invoice Extraction"
             AmountExclVAT,
             VATAmount,
             CurrencyCode,
-            Media
+            MediaId
         );
         TempBuffer.Insert();
 
@@ -266,7 +266,7 @@ codeunit 50101 "Invoice Extraction"
             for LineIndex := 0 to LinesArr.Count() - 1 do begin
                 LinesArr.Get(LineIndex, LineToken);
                 LineObj := LineToken.AsObject();
-                
+
                 ImportDocLine.Init();
                 ImportDocLine."Entry No." := EntryNo;
                 ImportDocLine."Line No." := (LineIndex + 1) * 10000;
@@ -274,11 +274,11 @@ codeunit 50101 "Invoice Extraction"
                 ImportDocLine.Quantity := GetJsonDecimalValue(LineObj, 'Quantity');
                 ImportDocLine."Unit Price" := GetJsonDecimalValue(LineObj, 'UnitPrice');
                 ImportDocLine."Line Amount" := GetJsonDecimalValue(LineObj, 'Amount');
-                
+
                 // Calculate missing values
                 if (ImportDocLine."Line Amount" = 0) and (ImportDocLine.Quantity > 0) and (ImportDocLine."Unit Price" > 0) then
                     ImportDocLine."Line Amount" := Round(ImportDocLine.Quantity * ImportDocLine."Unit Price", 0.01);
-                
+
                 ImportDocLine.Insert();
             end;
         end;
@@ -317,11 +317,17 @@ codeunit 50101 "Invoice Extraction"
         PurchHeader.Validate("Vendor Invoice No.", ImportDocHeader."Invoice No.");
         if ImportDocHeader."Invoice Date" <> 0D then
             PurchHeader.Validate("Document Date", ImportDocHeader."Invoice Date");
+        if ImportDocHeader."Due Date" <> 0D then
+            PurchHeader.Validate("Due Date", ImportDocHeader."Due Date");
+        if ImportDocHeader."Payment Terms Code" <> '' then
+            PurchHeader.Validate("Payment Terms Code", ImportDocHeader."Payment Terms Code");
+        if ImportDocHeader."Payment Method Code" <> '' then
+            PurchHeader.Validate("Payment Method Code", ImportDocHeader."Payment Method Code");
         PurchHeader.Insert(true);
 
         // Create lines
         ImportDocLine.SetRange("Entry No.", EntryNo);
-        
+
         if ImportDocLine.FindSet() then begin
             LineNo := 10000;
             repeat
@@ -340,7 +346,7 @@ codeunit 50101 "Invoice Extraction"
                 if ImportDocLine."Line Amount" <> 0 then
                     PurchLine.Validate("Line Amount", ImportDocLine."Line Amount");
                 PurchLine.Insert(true);
-                
+
                 LineNo += 10000;
             until ImportDocLine.Next() = 0;
         end else begin

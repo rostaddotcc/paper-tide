@@ -14,20 +14,20 @@ table 50100 "AI Extraction Setup"
         {
             Caption = 'API Base URL';
             DataClassification = CustomerContent;
-            ToolTip = 'Specifies the base URL for the Qwen-VL API (e.g., https://dashscope.aliyuncs.com/compatible-mode/v1)';
+            ToolTip = 'Specifies the base URL for the AI API (e.g., https://dashscope.aliyuncs.com/compatible-mode/v1 for Qwen-VL, https://api.openai.com/v1 for OpenAI)';
         }
-        field(3; "API Key"; SecretText)
+        field(3; "API Key"; Text[250])
         {
             Caption = 'API Key';
             DataClassification = CustomerContent;
-            ToolTip = 'Specifies the API key for authenticating with Qwen-VL service';
+            ToolTip = 'Specifies the API key for authenticating with the AI service';
+            ExtendedDatatype = Masked;
         }
         field(4; "Model Name"; Text[50])
         {
             Caption = 'Model Name';
             DataClassification = CustomerContent;
-            ToolTip = 'Specifies the model name (e.g., qwen-vl-max, qwen-vl-plus)';
-            InitValue = 'qwen-vl-max';
+            ToolTip = 'Specifies the model name (e.g., qwen-vl-max, gpt-4-vision-preview, gpt-4o)';
         }
         field(5; "Max Tokens"; Integer)
         {
@@ -85,11 +85,12 @@ table 50100 "AI Extraction Setup"
             ObsoleteState = Pending;
             ObsoleteReason = 'Reserved for future PDF conversion support';
         }
-        field(22; "PDF Converter API Key"; SecretText)
+        field(22; "PDF Converter API Key"; Text[250])
         {
             Caption = 'PDF Converter API Key';
             DataClassification = CustomerContent;
             ToolTip = 'API key for PDF conversion service (reserved for future use)';
+            ExtendedDatatype = Masked;
             ObsoleteState = Pending;
             ObsoleteReason = 'Reserved for future PDF conversion support';
         }
@@ -107,13 +108,7 @@ table 50100 "AI Extraction Setup"
     {
     }
 
-    procedure GetOrCreateSetup()
-    begin
-        if not Get() then begin
-            Init();
-            Insert(true);
-        end;
-    end;
+
 
     procedure GetSystemPrompt(): Text
     var
@@ -124,7 +119,7 @@ table 50100 "AI Extraction Setup"
         CalcFields("System Prompt");
         if "System Prompt".HasValue() then begin
             "System Prompt".CreateInStream(InStream, TextEncoding::UTF8);
-            TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator(), PromptText);
+            PromptText := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
             exit(PromptText);
         end;
         exit(GetDefaultSystemPrompt());
@@ -174,7 +169,6 @@ table 50100 "AI Extraction Setup"
         if not Get() then begin
             Init();
             "Primary Key" := '';
-            "Model Name" := 'qwen-vl-max';
             "Max Tokens" := 2048;
             Temperature := 0.1;
             "Request Timeout (ms)" := 60000;

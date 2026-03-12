@@ -8,7 +8,7 @@ codeunit 50100 "Qwen VL API"
         InvalidResponseErr: Label 'Invalid response from AI service: %1';
         RequestTimeoutErr: Label 'Request timed out after %1 ms. Please try again or increase timeout in setup.';
 
-    procedure ExtractFromImage(Media: Media; var ExtractedData: JsonObject): Boolean
+    procedure ExtractFromImage(MediaId: Guid; var ExtractedData: JsonObject): Boolean
     var
         Setup: Record "AI Extraction Setup";
         HttpClient: HttpClient;
@@ -26,7 +26,7 @@ codeunit 50100 "Qwen VL API"
         ValidateSetup(Setup);
 
         // Get base64 encoded image
-        Base64Image := ConvertMediaToBase64(Media);
+        Base64Image := ConvertMediaToBase64(MediaId);
         if Base64Image = '' then
             Error('Failed to convert image to base64 format.');
 
@@ -34,7 +34,6 @@ codeunit 50100 "Qwen VL API"
         RequestBody := BuildRequestJson(Setup, Base64Image);
 
         // Configure HTTP client
-        HttpClient.SetBaseAddress(Setup."API Base URL");
         HttpClient.Timeout(Setup."Request Timeout (ms)");
 
         // Create request content
@@ -43,12 +42,12 @@ codeunit 50100 "Qwen VL API"
         ContentHeaders.Remove('Content-Type');
         ContentHeaders.Add('Content-Type', 'application/json');
 
-        // Create request
+        // Create request with full URL
         HttpRequest.Method := 'POST';
-        HttpRequest.SetRequestUri('/chat/completions');
+        HttpRequest.SetRequestUri(Setup."API Base URL" + '/chat/completions');
         HttpRequest.Content(HttpContent);
         HttpRequest.GetHeaders(Headers);
-        Headers.Add('Authorization', SecretText.StrSubstNo('Bearer %1', Setup."API Key"));
+        Headers.Add('Authorization', StrSubstNo('Bearer %1', Setup."API Key"));
 
         // Send request
         if not HttpClient.Send(HttpRequest, HttpResponse) then
@@ -99,15 +98,14 @@ codeunit 50100 "Qwen VL API"
         ContentHeaders.Add('Content-Type', 'application/json');
 
         // Configure HTTP client
-        HttpClient.SetBaseAddress(Setup."API Base URL");
         HttpClient.Timeout(10000); // 10 seconds for test
 
-        // Create request with content and authorization
+        // Create request with full URL
         HttpRequest.Method := 'POST';
-        HttpRequest.SetRequestUri('/chat/completions');
+        HttpRequest.SetRequestUri(Setup."API Base URL" + '/chat/completions');
         HttpRequest.Content(HttpContent);
         HttpRequest.GetHeaders(Headers);
-        Headers.Add('Authorization', SecretText.StrSubstNo('Bearer %1', Setup."API Key"));
+        Headers.Add('Authorization', StrSubstNo('Bearer %1', Setup."API Key"));
 
         exit(HttpClient.Send(HttpRequest, HttpResponse) and HttpResponse.IsSuccessStatusCode());
     end;
@@ -122,28 +120,32 @@ codeunit 50100 "Qwen VL API"
             Error(SetupNotConfiguredErr);
     end;
 
-    local procedure ConvertMediaToBase64(Media: Media) Base64String: Text
+    local procedure ConvertMediaToBase64(MediaId: Guid) Base64String: Text
     var
         Base64Convert: Codeunit "Base64 Convert";
-        TempBlob: Codeunit "Temp Blob";
+        ImportDocHeader: Record "Import Document Header";
         InStream: InStream;
-        OutStream: OutStream;
-        MediaId: Guid;
     begin
-        if not Media.HasValue() then
-            exit('');
-
-        MediaId := Media.MediaId();
         if IsNullGuid(MediaId) then
-            exit('');
+            Error('MediaId is null or empty');
 
-        // Export media to stream
-        TempBlob.CreateOutStream(OutStream);
-        Media.ExportStream(OutStream);
-        TempBlob.CreateInStream(InStream);
+        // Find import document by Media ID
+        ImportDocHeader.SetRange("Media ID", MediaId);
+        if not ImportDocHeader.FindFirst() then
+            Error('Import document not found for MediaId: %1', MediaId);
+
+        if not ImportDocHeader."Image Blob".HasValue() then
+            Error('Image Blob is empty for Import Document: %1', ImportDocHeader."Entry No.");
+
+        // Read from blob
+        ImportDocHeader.CalcFields("Image Blob");
+        ImportDocHeader."Image Blob".CreateInStream(InStream);
 
         // Convert to base64
         Base64String := Base64Convert.ToBase64(InStream);
+
+        if Base64String = '' then
+            Error('Base64 conversion failed - empty result');
     end;
 
     local procedure BuildRequestJson(Setup: Record "AI Extraction Setup"; Base64Image: Text) RequestJson: Text

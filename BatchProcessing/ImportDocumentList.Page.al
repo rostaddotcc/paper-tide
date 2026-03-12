@@ -220,8 +220,10 @@ page 50105 "Import Document List"
 
     local procedure UpdateActionStates()
     begin
-        CanReview := (Rec.Status = Rec.Status::Ready) or
-                     (Rec."Processing Status" = Rec."Processing Status"::Completed);
+        // Can only review if document is ready/completed AND not already created
+        CanReview := ((Rec.Status = Rec.Status::Ready) or
+                     (Rec."Processing Status" = Rec."Processing Status"::Completed)) and
+                     (Rec."Created Invoice No." = '');
         CanCreateInvoice := (Rec.Status = Rec.Status::Ready) and
                            (Rec."Created Invoice No." = '');
         HasError := Rec."Processing Status" = Rec."Processing Status"::Error;

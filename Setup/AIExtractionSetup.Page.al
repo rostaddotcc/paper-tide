@@ -14,23 +14,23 @@ page 50100 "AI Extraction Setup"
         {
             group(General)
             {
-                Caption = 'General';
+                Caption = 'Connection Settings';
 
                 field("API Base URL"; Rec."API Base URL")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specifies the base URL for the Qwen-VL API';
+                    ToolTip = 'Specifies the base URL for the AI API (e.g., https://dashscope.aliyuncs.com/compatible-mode/v1 for Qwen-VL, https://api.openai.com/v1 for OpenAI)';
                 }
                 field("API Key"; Rec."API Key")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specifies the API key for Qwen-VL service';
+                    ToolTip = 'Specifies the API key for authenticating with the AI service';
                     ExtendedDatatype = Masked;
                 }
                 field("Model Name"; Rec."Model Name")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specifies the model name (qwen-vl-max recommended)';
+                    ToolTip = 'Specifies the model name (e.g., qwen-vl-max, gpt-4-vision-preview, gpt-4o)';
                 }
             }
 
@@ -109,7 +109,7 @@ page 50100 "AI Extraction Setup"
             {
                 ApplicationArea = All;
                 Caption = 'Test Connection';
-                ToolTip = 'Test the connection to Qwen-VL API';
+                ToolTip = 'Test the connection to the AI API';
                 Image = TestDatabase;
                 Promoted = true;
                 PromotedCategory = Process;
@@ -141,6 +141,135 @@ page 50100 "AI Extraction Setup"
                         Rec.SetSystemPrompt(SystemPromptText);
                     end;
                 end;
+            }
+        }
+        area(Creation)
+        {
+            group(ProviderPresets)
+            {
+                Caption = 'Provider Presets';
+                ToolTip = 'Quick setup for popular AI providers';
+                Image = Setup;
+
+                action(SetQwenVL)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use Qwen-VL (Alibaba)';
+                    ToolTip = 'Configure for Qwen-VL vision model from Alibaba Cloud';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for Qwen-VL? This will update the API Base URL and Model Name.', false) then begin
+                            Rec."API Base URL" := 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+                            Rec."Model Name" := 'qwen-vl-max';
+                            Rec.Modify();
+                            Message('Qwen-VL preset applied. Please enter your API Key from Alibaba Cloud DashScope.');
+                        end;
+                    end;
+                }
+                action(SetOpenAI)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use OpenAI';
+                    ToolTip = 'Configure for OpenAI GPT-4 Vision';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for OpenAI? This will update the API Base URL and Model Name.', false) then begin
+                            Rec."API Base URL" := 'https://api.openai.com/v1';
+                            Rec."Model Name" := 'gpt-4-vision-preview';
+                            Rec.Modify();
+                            Message('OpenAI preset applied. Please enter your API Key from OpenAI.');
+                        end;
+                    end;
+                }
+                action(SetOpenAIGPT4o)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use OpenAI (GPT-4o)';
+                    ToolTip = 'Configure for OpenAI GPT-4o (newer multimodal model)';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for OpenAI GPT-4o? This will update the API Base URL and Model Name.', false) then begin
+                            Rec."API Base URL" := 'https://api.openai.com/v1';
+                            Rec."Model Name" := 'gpt-4o';
+                            Rec.Modify();
+                            Message('OpenAI GPT-4o preset applied. Please enter your API Key from OpenAI.');
+                        end;
+                    end;
+                }
+                action(SetAzureOpenAI)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use Azure OpenAI';
+                    ToolTip = 'Configure for Azure OpenAI Service (you will need to enter your specific endpoint URL)';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for Azure OpenAI? You will need to enter your specific endpoint URL.', false) then begin
+                            Rec."API Base URL" := 'https://your-resource.openai.azure.com/openai/deployments/your-deployment';
+                            Rec."Model Name" := 'gpt-4-vision';
+                            Rec.Modify();
+                            Message('Azure OpenAI preset applied. Please update the API Base URL with your specific Azure endpoint and enter your API Key.');
+                        end;
+                    end;
+                }
+                action(SetGroq)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use Groq';
+                    ToolTip = 'Configure for Groq API (fast inference for open source models)';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for Groq? This will update the API Base URL and Model Name.', false) then begin
+                            Rec."API Base URL" := 'https://api.groq.com/openai/v1';
+                            Rec."Model Name" := 'llava-v1.5-7b';
+                            Rec.Modify();
+                            Message('Groq preset applied. Please enter your API Key from Groq.');
+                        end;
+                    end;
+                }
+                action(SetLocalAI)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use LocalAI (Local)';
+                    ToolTip = 'Configure for LocalAI running on your own server';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for LocalAI? This will update the API Base URL.', false) then begin
+                            Rec."API Base URL" := 'http://localhost:8080/v1';
+                            Rec."Model Name" := 'llava';
+                            Rec.Modify();
+                            Message('LocalAI preset applied. Make sure your LocalAI server is running and update the URL/port if needed.');
+                        end;
+                    end;
+                }
+                action(SetOllama)
+                {
+                    ApplicationArea = All;
+                    Caption = 'Use Ollama (Local)';
+                    ToolTip = 'Configure for Ollama running locally';
+                    Image = Action;
+
+                    trigger OnAction()
+                    begin
+                        if Confirm('Set up for Ollama? This will update the API Base URL.', false) then begin
+                            Rec."API Base URL" := 'http://localhost:11434/v1';
+                            Rec."Model Name" := 'llava';
+                            Rec.Modify();
+                            Message('Ollama preset applied. Make sure Ollama is running and update the URL/port if needed.');
+                        end;
+                    end;
+                }
             }
         }
     }
