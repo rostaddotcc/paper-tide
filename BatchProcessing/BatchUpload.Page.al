@@ -22,33 +22,33 @@ page 50104 "Batch Upload"
                 Caption = 'Processing Queue';
                 Visible = HasPendingDocuments;
 
-                field(PendingCount; GetPendingCount())
+                field(PendingCount; PendingCount)
                 {
                     Caption = 'Pending';
                     ApplicationArea = All;
                     Editable = false;
                 }
-                field(ProcessingCount; GetProcessingCount())
+                field(ProcessingCount; ProcessingCount)
                 {
                     Caption = 'Processing';
                     ApplicationArea = All;
                     Editable = false;
                 }
-                field(ReadyCount; GetReadyCount())
+                field(ReadyCount; ReadyCount)
                 {
                     Caption = 'Ready for Review';
                     ApplicationArea = All;
                     Editable = false;
                     Style = Favorable;
                 }
-                field(ErrorCount; GetErrorCount())
+                field(ErrorCount; ErrorCount)
                 {
                     Caption = 'Errors';
                     ApplicationArea = All;
                     Editable = false;
                     Style = Unfavorable;
                 }
-                field(CreatedCount; GetCreatedCount())
+                field(CreatedCount; CreatedCount)
                 {
                     Caption = 'Created Invoices';
                     ApplicationArea = All;
@@ -215,51 +215,40 @@ page 50104 "Batch Upload"
     end;
 
     local procedure UpdateStatusCounts()
-    begin
-        HasPendingDocuments := (GetPendingCount() + GetProcessingCount() + GetReadyCount() + GetErrorCount() + GetCreatedCount()) > 0;
-    end;
-
-    local procedure GetPendingCount(): Integer
     var
         ImportDocHeader: Record "Import Document Header";
     begin
-        ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Pending);
-        exit(ImportDocHeader.Count());
-    end;
+        PendingCount := 0;
+        ProcessingCount := 0;
+        ReadyCount := 0;
+        ErrorCount := 0;
+        CreatedCount := 0;
 
-    local procedure GetProcessingCount(): Integer
-    var
-        ImportDocHeader: Record "Import Document Header";
-    begin
-        ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Processing);
-        exit(ImportDocHeader.Count());
-    end;
+        if ImportDocHeader.FindSet() then
+            repeat
+                case ImportDocHeader."Processing Status" of
+                    ImportDocHeader."Processing Status"::Pending:
+                        PendingCount += 1;
+                    ImportDocHeader."Processing Status"::Processing:
+                        ProcessingCount += 1;
+                    ImportDocHeader."Processing Status"::Completed:
+                        if ImportDocHeader.Status = ImportDocHeader.Status::Ready then
+                            ReadyCount += 1;
+                    ImportDocHeader."Processing Status"::Error:
+                        ErrorCount += 1;
+                end;
+                if ImportDocHeader.Status = ImportDocHeader.Status::Created then
+                    CreatedCount += 1;
+            until ImportDocHeader.Next() = 0;
 
-    local procedure GetReadyCount(): Integer
-    var
-        ImportDocHeader: Record "Import Document Header";
-    begin
-        ImportDocHeader.SetRange(Status, ImportDocHeader.Status::Ready);
-        ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Completed);
-        exit(ImportDocHeader.Count());
-    end;
-
-    local procedure GetErrorCount(): Integer
-    var
-        ImportDocHeader: Record "Import Document Header";
-    begin
-        ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Error);
-        exit(ImportDocHeader.Count());
-    end;
-
-    local procedure GetCreatedCount(): Integer
-    var
-        ImportDocHeader: Record "Import Document Header";
-    begin
-        ImportDocHeader.SetRange(Status, ImportDocHeader.Status::Created);
-        exit(ImportDocHeader.Count());
+        HasPendingDocuments := (PendingCount + ProcessingCount + ReadyCount + ErrorCount + CreatedCount) > 0;
     end;
 
     var
         HasPendingDocuments: Boolean;
+        PendingCount: Integer;
+        ProcessingCount: Integer;
+        ReadyCount: Integer;
+        ErrorCount: Integer;
+        CreatedCount: Integer;
 }

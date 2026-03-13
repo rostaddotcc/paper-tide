@@ -2,6 +2,12 @@ codeunit 50101 "Invoice Extraction"
 {
     Access = Internal;
 
+    var
+        VendorNoRequiredErr: Label 'Vendor No. must be specified before creating invoice.';
+        InvoiceNoRequiredErr: Label 'Invoice No. must be specified before creating invoice.';
+        ImportDocNotFoundErr: Label 'Import document not found.';
+        InvoiceAlreadyCreatedErr: Label 'Invoice already created for this document.';
+
     procedure ParseAndFillBuffer(
         ExtractedData: JsonObject;
         MediaId: Guid;
@@ -131,9 +137,9 @@ codeunit 50101 "Invoice Extraction"
 
         // Validate required fields
         if TempBuffer."Vendor No." = '' then
-            Error('Vendor No. must be specified before creating invoice.');
+            Error(VendorNoRequiredErr);
         if TempBuffer."Invoice No." = '' then
-            Error('Invoice No. must be specified before creating invoice.');
+            Error(InvoiceNoRequiredErr);
 
         // Create purchase invoice header
         PurchHeader.Init();
@@ -285,10 +291,10 @@ codeunit 50101 "Invoice Extraction"
         DefaultGLAccount: Code[20];
     begin
         if not ImportDocHeader.Get(EntryNo) then
-            Error('Import document not found');
+            Error(ImportDocNotFoundErr);
 
         if ImportDocHeader.Status = ImportDocHeader.Status::Created then
-            Error('Invoice already created for this document');
+            Error(InvoiceAlreadyCreatedErr);
 
         // Get default G/L account from setup
         if AISetup.Get() then
@@ -296,9 +302,9 @@ codeunit 50101 "Invoice Extraction"
 
         // Validate required fields
         if ImportDocHeader."Vendor No." = '' then
-            Error('Vendor No. must be specified before creating invoice.');
+            Error(VendorNoRequiredErr);
         if ImportDocHeader."Invoice No." = '' then
-            Error('Invoice No. must be specified before creating invoice.');
+            Error(InvoiceNoRequiredErr);
 
         // Create purchase invoice header
         PurchHeader.Init();

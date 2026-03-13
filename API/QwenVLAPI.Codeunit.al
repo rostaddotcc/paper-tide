@@ -7,6 +7,11 @@ codeunit 50100 "Qwen VL API"
         HttpRequestFailedErr: Label 'HTTP request failed with status code: %1\Error: %2';
         InvalidResponseErr: Label 'Invalid response from AI service: %1';
         RequestTimeoutErr: Label 'Request timed out after %1 ms. Please try again or increase timeout in setup.';
+        ImageBase64ConversionErr: Label 'Failed to convert image to base64 format.';
+        MediaIdNullErr: Label 'MediaId is null or empty.';
+        ImportDocNotFoundErr: Label 'Import document not found for MediaId: %1';
+        ImageBlobEmptyErr: Label 'Image Blob is empty for Import Document: %1';
+        Base64EmptyResultErr: Label 'Base64 conversion failed - empty result.';
 
     procedure ExtractFromImage(MediaId: Guid; var ExtractedData: JsonObject): Boolean
     var
@@ -28,7 +33,7 @@ codeunit 50100 "Qwen VL API"
         // Get base64 encoded image
         Base64Image := ConvertMediaToBase64(MediaId);
         if Base64Image = '' then
-            Error('Failed to convert image to base64 format.');
+            Error(ImageBase64ConversionErr);
 
         // Build request body
         RequestBody := BuildRequestJson(Setup, Base64Image);
@@ -127,15 +132,15 @@ codeunit 50100 "Qwen VL API"
         InStream: InStream;
     begin
         if IsNullGuid(MediaId) then
-            Error('MediaId is null or empty');
+            Error(MediaIdNullErr);
 
         // Find import document by Media ID
         ImportDocHeader.SetRange("Media ID", MediaId);
         if not ImportDocHeader.FindFirst() then
-            Error('Import document not found for MediaId: %1', MediaId);
+            Error(ImportDocNotFoundErr, MediaId);
 
         if not ImportDocHeader."Image Blob".HasValue() then
-            Error('Image Blob is empty for Import Document: %1', ImportDocHeader."Entry No.");
+            Error(ImageBlobEmptyErr, ImportDocHeader."Entry No.");
 
         // Read from blob
         ImportDocHeader.CalcFields("Image Blob");
@@ -145,7 +150,7 @@ codeunit 50100 "Qwen VL API"
         Base64String := Base64Convert.ToBase64(InStream);
 
         if Base64String = '' then
-            Error('Base64 conversion failed - empty result');
+            Error(Base64EmptyResultErr);
     end;
 
     local procedure BuildRequestJson(Setup: Record "AI Extraction Setup"; Base64Image: Text) RequestJson: Text
