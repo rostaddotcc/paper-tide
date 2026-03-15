@@ -2,7 +2,7 @@
   "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "name": "AI Invoice Extractor",
   "publisher": "Custom Solutions",
-  "version": "1.0.0.24",
+  "version": "1.0.1.0",
   "brief": "AI-driven extraction of purchase invoices from images and PDFs",
   "description": "Extract invoice data from images and PDF files using AI vision models with preview and approval workflow. Supports PDF conversion via Gotenberg.",
   "privacyStatement": "",

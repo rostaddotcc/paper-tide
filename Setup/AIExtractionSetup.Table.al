@@ -161,6 +161,8 @@ table 50100 "AI Extraction Setup"
             '{\n' +
             '  "VendorNo": "",\n' +
             '  "VendorName": "",\n' +
+            '  "VendorVATNo": "",\n' +
+            '  "VendorBankAccount": "",\n' +
             '  "InvoiceNo": "",\n' +
             '  "InvoiceDate": "YYYY-MM-DD",\n' +
             '  "DueDate": "YYYY-MM-DD",\n' +
@@ -168,6 +170,7 @@ table 50100 "AI Extraction Setup"
             '  "AmountExclVAT": 0.00,\n' +
             '  "VATAmount": 0.00,\n' +
             '  "CurrencyCode": "",\n' +
+            '  "PONumber": "",\n' +
             '  "Lines": [\n' +
             '    {\n' +
             '      "Description": "",\n' +

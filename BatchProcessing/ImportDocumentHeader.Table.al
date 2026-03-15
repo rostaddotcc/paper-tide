@@ -133,6 +133,47 @@ table 50102 "Import Document Header"
             DataClassification = CustomerContent;
             TableRelation = "Payment Method";
         }
+        field(29; "Vendor VAT No."; Text[20])
+        {
+            Caption = 'Vendor VAT No.';
+            DataClassification = CustomerContent;
+            ToolTip = 'VAT registration number extracted from the invoice';
+        }
+        field(30; "Vendor Bank Account"; Text[50])
+        {
+            Caption = 'Vendor Bank Account';
+            DataClassification = CustomerContent;
+            ToolTip = 'Bank account or IBAN extracted from the invoice';
+        }
+        field(26; "PO Number"; Code[35])
+        {
+            Caption = 'PO Number';
+            DataClassification = CustomerContent;
+            ToolTip = 'Specifies the purchase order number extracted from the invoice';
+        }
+        field(27; "Original PDF Blob"; Blob)
+        {
+            Caption = 'Original PDF Blob';
+            DataClassification = CustomerContent;
+        }
+        field(28; "Is PDF"; Boolean)
+        {
+            Caption = 'Is PDF';
+            DataClassification = SystemMetadata;
+        }
+        field(31; "Verification Status"; Enum "Invoice Verification Status")
+        {
+            Caption = 'Verification Status';
+            DataClassification = SystemMetadata;
+            InitValue = "Not Checked";
+            ToolTip = 'Indicates the result of fraud/verification checks against known vendor data';
+        }
+        field(32; "Verification Messages"; Text[2048])
+        {
+            Caption = 'Verification Messages';
+            DataClassification = SystemMetadata;
+            ToolTip = 'Details of verification warnings or issues found';
+        }
     }
 
     keys
@@ -201,5 +242,27 @@ enum 50101 "Import Processing Status"
     value(3; Error)
     {
         Caption = 'Error';
+    }
+}
+
+enum 50102 "Invoice Verification Status"
+{
+    Extensible = true;
+
+    value(0; "Not Checked")
+    {
+        Caption = 'Not Checked';
+    }
+    value(1; Verified)
+    {
+        Caption = 'Verified';
+    }
+    value(2; Warning)
+    {
+        Caption = 'Warning';
+    }
+    value(3; Suspicious)
+    {
+        Caption = 'Suspicious';
     }
 }

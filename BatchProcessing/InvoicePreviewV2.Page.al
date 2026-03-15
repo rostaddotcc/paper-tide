@@ -34,6 +34,28 @@ page 50101 "Invoice Preview"
                     ToolTip = 'Specifies the vendor name';
                     Editable = false;
                 }
+                field("Vendor VAT No."; Rec."Vendor VAT No.")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'VAT registration number extracted from the invoice';
+                    Editable = IsEditable;
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
+                field("Vendor Bank Account"; Rec."Vendor Bank Account")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Bank account or IBAN extracted from the invoice';
+                    Editable = IsEditable;
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
                 field("Invoice No."; Rec."Invoice No.")
                 {
                     ApplicationArea = All;
@@ -64,6 +86,17 @@ page 50101 "Invoice Preview"
                 {
                     ApplicationArea = All;
                     ToolTip = 'Specifies the currency code';
+
+                    trigger OnValidate()
+                    begin
+                        Rec.Modify();
+                    end;
+                }
+                field("PO Number"; Rec."PO Number")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Specifies the purchase order number extracted from the invoice';
+                    Editable = IsEditable;
 
                     trigger OnValidate()
                     begin
@@ -165,6 +198,27 @@ page 50101 "Invoice Preview"
                 Editable = IsEditable;
             }
 
+            group(Verification)
+            {
+                Caption = 'Fraud Detection';
+                Editable = false;
+                Visible = Rec."Verification Status".AsInteger() > 0;
+
+                field("Verification Status"; Rec."Verification Status")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Indicates the result of automated fraud checks';
+                    StyleExpr = VerificationStyle;
+                }
+                field("Verification Messages"; Rec."Verification Messages")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Details of verification warnings or issues found';
+                    MultiLine = true;
+                    StyleExpr = VerificationStyle;
+                }
+            }
+
             group(Metadata)
             {
                 Caption = 'Document Information';
@@ -236,8 +290,25 @@ page 50101 "Invoice Preview"
                     if not ValidateBeforeCreate() then
                         exit;
 
-                    if not Confirm('Create purchase invoice with these values?', false) then
-                        exit;
+                    // Block suspicious invoices unless explicitly overridden
+                    if Rec."Verification Status" = Rec."Verification Status"::Suspicious then
+                        if not Confirm(
+                            'WARNING: This invoice has been flagged as SUSPICIOUS.\n\n%1\n\nAre you absolutely sure you want to create this invoice? This action will be logged.',
+                            false,
+                            Rec."Verification Messages") then
+                            exit;
+
+                    if Rec."Verification Status" = Rec."Verification Status"::Warning then
+                        if not Confirm(
+                            'This invoice has verification warnings:\n\n%1\n\nDo you want to proceed?',
+                            false,
+                            Rec."Verification Messages") then
+                            exit;
+
+                    if (Rec."Verification Status" <> Rec."Verification Status"::Suspicious) and
+                       (Rec."Verification Status" <> Rec."Verification Status"::Warning) then
+                        if not Confirm('Create purchase invoice with these values?', false) then
+                            exit;
 
                     // Save any pending changes first
                     SaveChanges();
@@ -268,6 +339,35 @@ page 50101 "Invoice Preview"
                 begin
                     if Rec."Created Invoice No." <> '' then
                         OpenPurchaseInvoice(Rec."Created Invoice No.");
+                end;
+            }
+            action(RunVerification)
+            {
+                ApplicationArea = All;
+                Caption = 'Verify';
+                ToolTip = 'Re-run fraud detection checks against the current vendor and invoice data';
+                Image = CheckDuplicates;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                Enabled = not PageLocked;
+
+                trigger OnAction()
+                var
+                    InvoiceExtraction: Codeunit "Invoice Extraction";
+                begin
+                    SaveChanges();
+                    InvoiceExtraction.VerifyVendorData(Rec);
+                    Rec.Modify();
+                    CurrPage.Update(false);
+                    case Rec."Verification Status" of
+                        Rec."Verification Status"::Verified:
+                            Message('Verification passed. All data matches vendor records.');
+                        Rec."Verification Status"::Warning:
+                            Message('Verification completed with warnings:\n%1', Rec."Verification Messages");
+                        Rec."Verification Status"::Suspicious:
+                            Message('SUSPICIOUS! Verification found issues:\n%1', Rec."Verification Messages");
+                    end;
                 end;
             }
             action(ToggleEdit)
@@ -335,6 +435,18 @@ page 50101 "Invoice Preview"
             PageLocked := false;
         end;
 
+        // Set verification style
+        case Rec."Verification Status" of
+            Rec."Verification Status"::Verified:
+                VerificationStyle := 'Favorable';
+            Rec."Verification Status"::Warning:
+                VerificationStyle := 'Ambiguous';
+            Rec."Verification Status"::Suspicious:
+                VerificationStyle := 'Unfavorable';
+            else
+                VerificationStyle := 'None';
+        end;
+
         // Set error visibility and processing status style
         HasError := Rec."Processing Status" = Rec."Processing Status"::Error;
         case Rec."Processing Status" of
@@ -380,10 +492,39 @@ page 50101 "Invoice Preview"
     local procedure UpdateVendorName()
     var
         Vendor: Record Vendor;
+        InvoiceExtraction: Codeunit "Invoice Extraction";
     begin
         if Vendor.Get(Rec."Vendor No.") then begin
+            SaveVendorNameMapping(Rec."Vendor Name", Rec."Vendor No.", Vendor.Name);
             Rec."Vendor Name" := Vendor.Name;
+            // Re-run verification against the newly selected vendor
+            InvoiceExtraction.VerifyVendorData(Rec);
             Rec.Modify();
+            CurrPage.Update(false);
+        end;
+    end;
+
+    local procedure SaveVendorNameMapping(ExtractedName: Text[100]; VendorNo: Code[20]; ActualVendorName: Text[100])
+    var
+        VendorNameMapping: Record "Vendor Name Mapping";
+    begin
+        if (ExtractedName = '') or (VendorNo = '') then
+            exit;
+
+        // Only save if extracted name differs from actual vendor name
+        if UpperCase(ExtractedName) = UpperCase(ActualVendorName) then
+            exit;
+
+        if VendorNameMapping.Get(ExtractedName) then begin
+            if VendorNameMapping."Vendor No." <> VendorNo then begin
+                VendorNameMapping."Vendor No." := VendorNo;
+                VendorNameMapping.Modify();
+            end;
+        end else begin
+            VendorNameMapping.Init();
+            VendorNameMapping."Extracted Name" := ExtractedName;
+            VendorNameMapping."Vendor No." := VendorNo;
+            VendorNameMapping.Insert(true);
         end;
     end;
 
@@ -453,4 +594,5 @@ page 50101 "Invoice Preview"
         PageLocked: Boolean;
         HasError: Boolean;
         ProcessingStatusStyle: Text;
+        VerificationStyle: Text;
 }

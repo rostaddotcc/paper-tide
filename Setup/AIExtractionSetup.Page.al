@@ -193,6 +193,17 @@ page 50100 "AI Extraction Setup"
                 end;
             }
         }
+            action(VendorNameMappings)
+            {
+                ApplicationArea = All;
+                Caption = 'Vendor Name Mappings';
+                ToolTip = 'View and manage vendor name alias mappings learned from user corrections';
+                Image = Relationship;
+                Promoted = true;
+                PromotedCategory = Process;
+                RunObject = page "Vendor Name Mapping List";
+            }
+        }
         area(Creation)
         {
             group(ProviderPresets)

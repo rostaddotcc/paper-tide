@@ -53,11 +53,23 @@ page 50105 "Import Document List"
                     ApplicationArea = All;
                     ToolTip = 'Extracted invoice date';
                 }
+                field("PO Number"; Rec."PO Number")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Purchase order number from the invoice';
+                    Visible = false;
+                }
                 field("Amount Incl. VAT"; Rec."Amount Incl. VAT")
                 {
                     ApplicationArea = All;
                     ToolTip = 'Extracted amount including VAT';
                     BlankZero = true;
+                }
+                field("Verification Status"; Rec."Verification Status")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Fraud detection verification result';
+                    StyleExpr = VerificationStyle;
                 }
                 field("Created Invoice No."; Rec."Created Invoice No.")
                 {
@@ -241,6 +253,18 @@ page 50105 "Import Document List"
             else
                 StatusStyle := 'None';
         end;
+
+        // Set verification style
+        case Rec."Verification Status" of
+            Rec."Verification Status"::Verified:
+                VerificationStyle := 'Favorable';
+            Rec."Verification Status"::Warning:
+                VerificationStyle := 'Ambiguous';
+            Rec."Verification Status"::Suspicious:
+                VerificationStyle := 'Unfavorable';
+            else
+                VerificationStyle := 'None';
+        end;
     end;
 
     local procedure OpenPreviewPage()
@@ -257,4 +281,5 @@ page 50105 "Import Document List"
         HasError: Boolean;
         NotCreated: Boolean;
         StatusStyle: Text;
+        VerificationStyle: Text;
 }

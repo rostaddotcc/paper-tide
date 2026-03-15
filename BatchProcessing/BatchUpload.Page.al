@@ -171,9 +171,12 @@ page 50104 "Batch Upload"
         BatchProcessingMgt: Codeunit "Batch Processing Mgt";
         PDFConverter: Codeunit "PDF Converter";
         ImageTempBlob: Codeunit "Temp Blob";
+        PdfTempBlob: Codeunit "Temp Blob";
         OutStream: OutStream;
+        PdfOutStream: OutStream;
         MediaInStream: InStream;
         ImageInStream: InStream;
+        PdfInStream: InStream;
         FileExtension: Text;
         MimeType: Text;
         IsPdf: Boolean;
@@ -181,9 +184,14 @@ page 50104 "Batch Upload"
         FileExtension := LowerCase(FileManagement.GetExtension(FileName));
         IsPdf := BatchProcessingMgt.IsPdfFile(FileExtension);
 
-        // Convert PDF to image if needed
         if IsPdf then begin
-            if not PDFConverter.TryConvertPdfToImage(InStream, ImageTempBlob) then
+            // Buffer the original PDF so we can use it for both conversion and storage
+            PdfTempBlob.CreateOutStream(PdfOutStream);
+            CopyStream(PdfOutStream, InStream);
+
+            // Convert PDF to image using a fresh InStream from buffer
+            PdfTempBlob.CreateInStream(PdfInStream);
+            if not PDFConverter.TryConvertPdfToImage(PdfInStream, ImageTempBlob) then
                 Error(GetLastErrorText());
             MimeType := 'image/png';
         end else
@@ -196,13 +204,21 @@ page 50104 "Batch Upload"
         ImportDocHeader.Status := ImportDocHeader.Status::Pending;
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Pending;
 
-        // Save image to blob
+        // Save converted image (PNG) to blob for AI processing
         ImportDocHeader."Image Blob".CreateOutStream(OutStream);
         if IsPdf then begin
             ImageTempBlob.CreateInStream(ImageInStream);
             CopyStream(OutStream, ImageInStream);
         end else
             CopyStream(OutStream, InStream);
+
+        // Save original PDF for attachment to created invoice
+        if IsPdf then begin
+            ImportDocHeader."Is PDF" := true;
+            PdfTempBlob.CreateInStream(PdfInStream);
+            ImportDocHeader."Original PDF Blob".CreateOutStream(PdfOutStream);
+            CopyStream(PdfOutStream, PdfInStream);
+        end;
 
         ImportDocHeader.Insert(true);
 

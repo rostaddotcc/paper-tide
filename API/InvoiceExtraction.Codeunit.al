@@ -78,24 +78,65 @@ codeunit 50101 "Invoice Extraction"
     end;
 
     local procedure LookupVendorNo(VendorNo: Code[20]; VendorName: Text[100]): Code[20]
+    begin
+        exit(LookupVendorNoExtended(VendorNo, VendorName, '', ''));
+    end;
+
+    local procedure LookupVendorNoExtended(VendorNo: Code[20]; VendorName: Text[100]; VATNo: Text[20]; BankAccount: Text[50]): Code[20]
     var
         Vendor: Record Vendor;
+        VendorBankAccount: Record "Vendor Bank Account";
+        VendorNameMapping: Record "Vendor Name Mapping";
     begin
+        // Step 0: Check vendor name mapping table first
+        if VendorName <> '' then
+            if VendorNameMapping.Get(VendorName) then
+                if Vendor.Get(VendorNameMapping."Vendor No.") then begin
+                    VendorNameMapping."Usage Count" += 1;
+                    VendorNameMapping.Modify();
+                    exit(VendorNameMapping."Vendor No.");
+                end;
+
+        // Step 1: Check if AI-extracted vendor number is valid
         if VendorNo <> '' then
             if not Vendor.Get(VendorNo) then
                 VendorNo := '';
 
-        if (VendorNo = '') and (VendorName <> '') then begin
+        if VendorNo <> '' then
+            exit(VendorNo);
+
+        // Step 2: Match by VAT Registration No. (highly reliable, unique)
+        if VATNo <> '' then begin
+            Vendor.Reset();
+            Vendor.SetRange("VAT Registration No.", VATNo);
+            if Vendor.FindFirst() then
+                exit(Vendor."No.");
+        end;
+
+        // Step 3: Match by bank account / IBAN
+        if BankAccount <> '' then begin
+            VendorBankAccount.Reset();
+            VendorBankAccount.SetRange(IBAN, BankAccount);
+            if VendorBankAccount.FindFirst() then
+                exit(VendorBankAccount."Vendor No.");
+            VendorBankAccount.Reset();
+            VendorBankAccount.SetRange("Bank Account No.", BankAccount);
+            if VendorBankAccount.FindFirst() then
+                exit(VendorBankAccount."Vendor No.");
+        end;
+
+        // Step 4-5: Try matching by name
+        if VendorName <> '' then begin
+            Vendor.Reset();
             Vendor.SetRange(Name, VendorName);
             if Vendor.FindFirst() then
                 exit(Vendor."No.");
             Vendor.SetFilter(Name, '@*' + VendorName + '*');
             if Vendor.FindFirst() then
                 exit(Vendor."No.");
-            exit('');
         end;
 
-        exit(VendorNo);
+        exit('');
     end;
 
     local procedure ParseAndInsertLine(
@@ -208,6 +249,9 @@ codeunit 50101 "Invoice Extraction"
         AmountExclVAT: Decimal;
         VATAmount: Decimal;
         CurrencyCode: Code[10];
+        PONumber: Code[35];
+        VATNo: Text[20];
+        BankAccount: Text[50];
         EntryNo: Integer;
         DefaultGLAccount: Code[20];
     begin
@@ -231,9 +275,12 @@ codeunit 50101 "Invoice Extraction"
         AmountExclVAT := GetJsonDecimalValue(ExtractedData, 'AmountExclVAT');
         VATAmount := GetJsonDecimalValue(ExtractedData, 'VATAmount');
         CurrencyCode := GetJsonTextValue(ExtractedData, 'CurrencyCode', 10);
+        PONumber := GetJsonTextValue(ExtractedData, 'PONumber', 35);
+        VATNo := GetJsonTextValue(ExtractedData, 'VendorVATNo', 20);
+        BankAccount := GetJsonTextValue(ExtractedData, 'VendorBankAccount', 50);
 
-        // Try to find vendor by number or name
-        VendorNo := LookupVendorNo(VendorNo, VendorName);
+        // Try to find vendor by number, VAT no., bank account, or name
+        VendorNo := LookupVendorNoExtended(VendorNo, VendorName, VATNo, BankAccount);
 
         // Update header with extracted values
         ImportDocHeader."Vendor No." := VendorNo;
@@ -245,6 +292,12 @@ codeunit 50101 "Invoice Extraction"
         ImportDocHeader."Amount Excl. VAT" := AmountExclVAT;
         ImportDocHeader."VAT Amount" := VATAmount;
         ImportDocHeader."Currency Code" := CurrencyCode;
+        ImportDocHeader."PO Number" := PONumber;
+        ImportDocHeader."Vendor VAT No." := VATNo;
+        ImportDocHeader."Vendor Bank Account" := BankAccount;
+
+        // Cross-validate extracted data against known vendor data
+        VerifyVendorData(ImportDocHeader);
         ImportDocHeader.Modify();
 
         // Parse and save lines
@@ -321,6 +374,8 @@ codeunit 50101 "Invoice Extraction"
             PurchHeader.Validate("Payment Terms Code", ImportDocHeader."Payment Terms Code");
         if ImportDocHeader."Payment Method Code" <> '' then
             PurchHeader.Validate("Payment Method Code", ImportDocHeader."Payment Method Code");
+        if ImportDocHeader."PO Number" <> '' then
+            PurchHeader."Vendor Order No." := ImportDocHeader."PO Number";
         PurchHeader.Insert(true);
 
         // Create lines
@@ -392,36 +447,118 @@ codeunit 50101 "Invoice Extraction"
         FileName: Text;
         FileExtension: Text;
     begin
-        // Check if we have an image to attach
-        if not ImportDocHeader."Image Blob".HasValue() then
-            exit;
+        // Prefer original PDF if available (contains all pages)
+        ImportDocHeader.CalcFields("Original PDF Blob", "Image Blob");
 
-        // Prepare file name
-        FileName := ImportDocHeader."File Name";
-        if FileName = '' then
-            FileName := 'Invoice_' + Format(ImportDocHeader."Entry No.") + '.png';
+        if ImportDocHeader."Is PDF" and ImportDocHeader."Original PDF Blob".HasValue() then begin
+            FileName := ImportDocHeader."File Name";
+            if FileName = '' then
+                FileName := 'Invoice_' + Format(ImportDocHeader."Entry No.") + '.pdf';
+            FileExtension := 'pdf';
+            ImportDocHeader."Original PDF Blob".CreateInStream(InStream);
+        end else begin
+            if not ImportDocHeader."Image Blob".HasValue() then
+                exit;
+            FileName := ImportDocHeader."File Name";
+            if FileName = '' then
+                FileName := 'Invoice_' + Format(ImportDocHeader."Entry No.") + '.png';
+            FileExtension := LowerCase(FileName);
+            if StrPos(FileExtension, '.') > 0 then
+                FileExtension := CopyStr(FileExtension, StrPos(FileExtension, '.') + 1)
+            else
+                FileExtension := 'png';
+            ImportDocHeader."Image Blob".CreateInStream(InStream);
+        end;
 
-        // Get file extension
-        FileExtension := LowerCase(FileName);
-        if StrPos(FileExtension, '.') > 0 then
-            FileExtension := CopyStr(FileExtension, StrPos(FileExtension, '.') + 1)
-        else
-            FileExtension := 'png';
-
-        // Create attachment record
         DocumentAttachment.Init();
         DocumentAttachment.Validate("Table ID", Database::"Purchase Header");
         DocumentAttachment.Validate("No.", PurchaseInvoiceNo);
         DocumentAttachment.Validate("Document Type", DocumentAttachment."Document Type"::Invoice);
         DocumentAttachment.Validate("File Name", CopyStr(FileName, 1, MaxStrLen(DocumentAttachment."File Name")));
         DocumentAttachment.Validate("File Extension", CopyStr(FileExtension, 1, MaxStrLen(DocumentAttachment."File Extension")));
-
-        // Copy image data
-        ImportDocHeader.CalcFields("Image Blob");
-        ImportDocHeader."Image Blob".CreateInStream(InStream);
         DocumentAttachment."Document Reference ID".ImportStream(InStream, FileName);
-
         DocumentAttachment.Insert(true);
+    end;
+
+    procedure VerifyVendorData(var ImportDocHeader: Record "Import Document Header")
+    var
+        Vendor: Record Vendor;
+        VendorBankAccount: Record "Vendor Bank Account";
+        Messages: Text;
+        VerifStatus: Enum "Invoice Verification Status";
+        BankFound: Boolean;
+    begin
+        VerifStatus := VerifStatus::"Not Checked";
+        Messages := '';
+
+        // No vendor matched — unknown sender, needs manual review
+        if ImportDocHeader."Vendor No." = '' then begin
+            ImportDocHeader."Verification Status" := VerifStatus::Warning;
+            ImportDocHeader."Verification Messages" := 'No vendor match found. Manual verification required.';
+            exit;
+        end;
+
+        if not Vendor.Get(ImportDocHeader."Vendor No.") then begin
+            ImportDocHeader."Verification Status" := VerifStatus::Warning;
+            ImportDocHeader."Verification Messages" := 'Matched vendor no longer exists.';
+            exit;
+        end;
+
+        // Start with Verified, downgrade if issues found
+        VerifStatus := VerifStatus::Verified;
+
+        // CHECK 1: VAT Registration No. mismatch
+        if ImportDocHeader."Vendor VAT No." <> '' then begin
+            if Vendor."VAT Registration No." = '' then begin
+                Messages += 'Vendor has no VAT No. on file — cannot verify. ';
+                if VerifStatus.AsInteger() < VerifStatus::Warning.AsInteger() then
+                    VerifStatus := VerifStatus::Warning;
+            end else
+                if UpperCase(ImportDocHeader."Vendor VAT No.") <> UpperCase(Vendor."VAT Registration No.") then begin
+                    Messages += 'VAT No. mismatch! Invoice: ' + ImportDocHeader."Vendor VAT No." +
+                        ', Vendor card: ' + Vendor."VAT Registration No." + '. ';
+                    VerifStatus := VerifStatus::Suspicious;
+                end;
+        end;
+
+        // CHECK 2: Bank account / IBAN mismatch
+        if ImportDocHeader."Vendor Bank Account" <> '' then begin
+            BankFound := false;
+            VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
+            if VendorBankAccount.FindSet() then
+                repeat
+                    if (UpperCase(VendorBankAccount.IBAN) = UpperCase(ImportDocHeader."Vendor Bank Account")) or
+                       (UpperCase(VendorBankAccount."Bank Account No.") = UpperCase(ImportDocHeader."Vendor Bank Account")) then
+                        BankFound := true;
+                until (VendorBankAccount.Next() = 0) or BankFound;
+
+            if not BankFound then begin
+                VendorBankAccount.Reset();
+                VendorBankAccount.SetRange("Vendor No.", Vendor."No.");
+                if VendorBankAccount.IsEmpty() then begin
+                    Messages += 'Vendor has no bank accounts on file — cannot verify payment details. ';
+                    if VerifStatus.AsInteger() < VerifStatus::Warning.AsInteger() then
+                        VerifStatus := VerifStatus::Warning;
+                end else begin
+                    Messages += 'BANK ACCOUNT NOT RECOGNIZED! Invoice: ' + ImportDocHeader."Vendor Bank Account" +
+                        ' does not match any registered account for this vendor. ';
+                    VerifStatus := VerifStatus::Suspicious;
+                end;
+            end;
+        end;
+
+        // CHECK 3: No VAT or bank info at all — cannot verify
+        if (ImportDocHeader."Vendor VAT No." = '') and (ImportDocHeader."Vendor Bank Account" = '') then begin
+            Messages += 'No VAT No. or bank account on invoice — cannot verify sender identity. ';
+            if VerifStatus.AsInteger() < VerifStatus::Warning.AsInteger() then
+                VerifStatus := VerifStatus::Warning;
+        end;
+
+        if Messages = '' then
+            Messages := 'All extracted data matches vendor records.';
+
+        ImportDocHeader."Verification Status" := VerifStatus;
+        ImportDocHeader."Verification Messages" := CopyStr(Messages, 1, 2048);
     end;
 
     local procedure GetJsonTextValue(JsonObj: JsonObject; FieldName: Text; MaxLength: Integer): Text
