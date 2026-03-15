@@ -1,12 +1,12 @@
-page 50105 "Import Document List"
+page 50105 "PaperTide Import Documents"
 {
-    Caption = 'Import Document Queue';
+    Caption = 'PaperTide Import Queue';
     PageType = List;
     ApplicationArea = All;
     UsageCategory = Lists;
-    SourceTable = "Import Document Header";
+    SourceTable = "PaperTide Import Doc. Header";
     SourceTableView = sorting("Import DateTime") order(descending);
-    CardPageId = "Invoice Preview";
+    CardPageId = "PaperTide Invoice Preview";
     Editable = false;
 
     layout
@@ -135,7 +135,7 @@ page 50105 "Import Document List"
 
                 trigger OnAction()
                 var
-                    InvoiceExtraction: Codeunit "Invoice Extraction";
+                    InvoiceExtraction: Codeunit "PaperTide Invoice Extraction";
                 begin
                     if Confirm('Create purchase invoice from %1?', false, Rec."File Name") then begin
                         InvoiceExtraction.CreateInvoiceFromImportDoc(Rec."Entry No.");
@@ -155,7 +155,7 @@ page 50105 "Import Document List"
 
                 trigger OnAction()
                 var
-                    BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+                    BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
                 begin
                     if Confirm('Retry processing %1?', false, Rec."File Name") then begin
                         BatchProcessingMgt.RetryDocument(Rec."Entry No.");
@@ -269,10 +269,10 @@ page 50105 "Import Document List"
 
     local procedure OpenPreviewPage()
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
     begin
         ImportDocHeader.Get(Rec."Entry No.");
-        Page.Run(Page::"Invoice Preview", ImportDocHeader);
+        Page.Run(Page::"PaperTide Invoice Preview", ImportDocHeader);
     end;
 
     var

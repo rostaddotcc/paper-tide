@@ -12,6 +12,7 @@ A Per-Tenant Extension (PTE) for Business Central that uses AI vision models to 
 - **Import Queue** - View and manage all imported documents with status tracking
 - **Preview & Edit** - Review extracted data with original image in FactBox before creating
 - **AI GL Account Suggestion** - AI analyzes your chart of accounts and suggests the most appropriate G/L account for each invoice line
+- **Auto Coding (Separate AI Model)** - Dedicated text AI model for GL account classification with confidence levels and reasoning
 - **PO Number Extraction** - AI extracts purchase order references from invoices
 - **Vendor Name Learning** - System learns vendor name aliases from user corrections for automatic future matching
 - **Multi-Field Vendor Matching** - Match vendors by VAT Registration No., bank account/IBAN, name mapping, or name
@@ -58,7 +59,7 @@ In VS Code:
 
 After publishing, configure the extension:
 
-1. Search for **"AI Extraction Setup"** in Business Central
+1. Search for **"PaperTide AI Setup"** in Business Central
 2. Fill in the following fields:
 
 | Field | Example Value | Description |
@@ -92,7 +93,7 @@ The system learns from your corrections:
 3. The mapping "hej AB" -> "Hejsan AB" is saved automatically
 4. Next time "hej AB" appears, it matches "Hejsan AB" without manual intervention
 
-Manage mappings via **AI Extraction Setup** -> **Vendor Name Mappings**.
+Manage mappings via **PaperTide AI Setup** -> **PaperTide Vendor Mappings**.
 
 ### Default System Prompt
 
@@ -227,23 +228,23 @@ When the AI extracts vendor information, matching follows this priority:
 ```
 User selects multiple images/PDFs
         |
-[Batch Upload Page] -> Queue files (PDF -> buffer original + Gotenberg -> PNG)
+[PaperTide Batch Upload] -> Queue files (PDF -> buffer original + Gotenberg -> PNG)
         |
-[Batch Processing Mgt] -> Concurrency control (max 3)
+[PaperTide Batch Processing Mgt] -> Concurrency control (max 3)
         |
-[Batch API Worker] -> Process each image
+[PaperTide Batch API Worker] -> Process each image
         |
-[AI Vision API Codeunit] -> HTTP POST with base64 image
+[PaperTide AI Vision API] -> HTTP POST with base64 image
         |
 AI vision model processes image
         |
-[Invoice Extraction Codeunit] -> Parse JSON + Vendor Lookup + Verify
+[PaperTide Invoice Extraction] -> Parse JSON + Vendor Lookup + Verify
         |
 Save to Import Document Header + Lines
         |
-[Import Document List] -> Display with status + verification
+[PaperTide Import Documents] -> Display with status + verification
         |
-User opens Invoice Preview -> Review, verify & edit
+User opens PaperTide Invoice Preview -> Review, verify & edit
         |
 Create Purchase Header + Lines + Attach PDF/image
         |
@@ -280,26 +281,34 @@ Pending -> Processing -> Ready -> Created
 
 | Object | Type | ID | Purpose |
 |--------|------|----|---------|
-| AI Extraction Setup | Table | 50100 | Configuration storage (singleton) |
-| Temp Invoice Buffer | Table | 50101 | Temporary data for preview |
-| Import Document Header | Table | 50102 | Persistent queue for batch processing |
-| Import Document Line | Table | 50103 | Extracted line items |
-| Vendor Name Mapping | Table | 50104 | Learned vendor name aliases |
-| AI Vision API | Codeunit | 50100 | HTTP client for AI service |
-| Invoice Extraction | Codeunit | 50101 | Parser, vendor lookup, verification, invoice creation |
-| Batch Processing Mgt | Codeunit | 50102 | Queue and concurrency management |
-| Batch API Worker | Codeunit | 50103 | Individual document processor |
-| PDF Converter | Codeunit | 50104 | PDF-to-image conversion via Gotenberg |
-| AI Extraction Setup | Page | 50100 | Setup card |
-| Invoice Preview | Page | 50101 | Review interface with fraud detection and image FactBox |
-| Batch Upload | Page | 50104 | Multi-file upload interface |
-| Import Document List | Page | 50105 | Document queue with verification status |
-| Vendor Name Mapping List | Page | 50106 | Manage vendor name aliases |
+| PaperTide AI Setup | Table | 50100 | Configuration storage (singleton) |
+| PaperTide Temp Invoice Buffer | Table | 50101 | Temporary data for preview |
+| PaperTide Import Doc. Header | Table | 50102 | Persistent queue for batch processing |
+| PaperTide Import Doc. Line | Table | 50103 | Extracted line items |
+| PaperTide Vendor Name Mapping | Table | 50104 | Learned vendor name aliases |
+| PaperTide AI Vision API | Codeunit | 50100 | HTTP client for AI service |
+| PaperTide Invoice Extraction | Codeunit | 50101 | Parser, vendor lookup, verification, invoice creation |
+| PaperTide Batch Processing Mgt | Codeunit | 50102 | Queue and concurrency management |
+| PaperTide Batch API Worker | Codeunit | 50103 | Individual document processor |
+| PaperTide PDF Converter | Codeunit | 50104 | PDF-to-image conversion via Gotenberg |
+| PaperTide GL Account Predictor | Codeunit | 50106 | GL account classification via text AI model |
+| PaperTide AI Setup | Page | 50100 | Setup card |
+| PaperTide Invoice Preview | Page | 50101 | Review interface with fraud detection and image FactBox |
+| PaperTide Inv. Preview Subform | Page | 50102 | Invoice line subform |
+| PaperTide Inv. Image FactBox | Page | 50103 | Image preview FactBox |
+| PaperTide Batch Upload | Page | 50104 | Multi-file upload interface |
+| PaperTide Import Documents | Page | 50105 | Document queue with verification status |
+| PaperTide Vendor Mappings | Page | 50106 | Manage vendor name aliases |
+| PaperTide Purch. Inv. List Ext | PageExtension | 50100 | Purchase Invoice list extension |
+| PaperTide Import Doc. Status | Enum | 50100 | Document status values |
+| PaperTide Import Proc. Status | Enum | 50101 | Processing status values |
+| PaperTide Inv. Verif. Status | Enum | 50102 | Verification status values |
+| PaperTide | PermissionSet | 50100 | Extension permissions |
 
 ## Troubleshooting
 
 ### "Setup is not configured"
-- Go to **AI Extraction Setup** page (search for it)
+- Go to **PaperTide AI Setup** page (search for it)
 - Fill in **API Base URL** and **API Key**
 - Fill in **Model Name** (e.g., `gpt-4o`) or use a Provider Preset
 - Click **"Test Connection"**
@@ -333,11 +342,19 @@ Pending -> Processing -> Ready -> Created
 - Ensure `allowHttpClientRequests` is enabled in extension settings
 - In Extension Management, click Configure -> Allow HttpClient Requests
 
-### Cannot see AI Extraction Setup page
-- Ensure you have the **"Paper Tide"** permission set assigned
-- Go to Users -> select your user -> Permission Sets -> add "Paper Tide"
+### Cannot see PaperTide AI Setup page
+- Ensure you have the **"PaperTide"** permission set assigned
+- Go to Users -> select your user -> Permission Sets -> add "PaperTide"
 
 ## Changelog
+
+### v1.0.2.0 (2026-03-15)
+- **PaperTide Branding** - Full rebrand of all AL objects with PaperTide prefix for consistent naming
+- **Auto Coding (Separate AI Model)** - New feature: dedicated text AI model for GL account classification, separate from vision model. Configurable connection, model, and system prompt. Includes vendor posting history context for better predictions.
+- **GL Suggestion Confidence** - AI returns confidence level (High/Medium/Low) and reasoning per line suggestion
+- **Configurable Concurrency** - Max concurrent processing now configurable in setup (1-10, default 3)
+- Fixed syntax issues in AI Setup page and Invoice Preview Subform
+- Fixed ActionRef/Promoted property conflicts in Batch Upload page
 
 ### v1.0.1.1 (2026-03-15)
 - **Provider Agnostic** - Renamed internal API codeunit from Qwen VL API to AI Vision API; removed all provider-specific references
@@ -351,9 +368,9 @@ Pending -> Processing -> Ready -> Created
 - **Multi-Field Vendor Matching** - Match by VAT Registration No., bank account/IBAN, name mapping, in addition to name
 - **Fraud Detection** - Automated cross-validation of extracted VAT/bank data against vendor records with Verified/Warning/Suspicious status
 - **Verify Action** - Manual re-verification button in Invoice Preview after editing fields
-- New table: Vendor Name Mapping (50104)
-- New page: Vendor Name Mapping List (50106)
-- New enum: Invoice Verification Status
+- New table: PaperTide Vendor Name Mapping (50104)
+- New page: PaperTide Vendor Mappings (50106)
+- New enum: PaperTide Inv. Verif. Status
 
 ### v1.0.0.24
 - Multi-file drag & drop upload
@@ -364,6 +381,7 @@ Pending -> Processing -> Ready -> Created
 
 ## Future Enhancements
 
+- [ ] **Vendor Invoice Defaults** - Per-vendor setup for default line type (G/L Account or Item), default allocation account, and other invoice creation defaults
 - [ ] **Purchase Order Linking** - Automatically link invoices to existing POs via extracted PO number and "Get Receipt Lines"
 - [ ] **VIES VAT Validation** - Validate vendor VAT numbers against the EU VIES service at import, using vendor card Country Code + VAT No.
 - [ ] **Azure File Storage Import** - Connect to Azure File Storage for automated invoice import
@@ -386,7 +404,7 @@ For issues or questions, contact your Business Central partner or development te
 
 ---
 
-**Version:** 1.0.1.1
+**Version:** 1.0.2.0
 **Compatible with:** Business Central 27.4+
 **Runtime:** 14.0+
 **Last Updated:** 2026-03-15

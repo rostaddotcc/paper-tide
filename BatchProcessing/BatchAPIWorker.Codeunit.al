@@ -1,4 +1,4 @@
-codeunit 50103 "Batch API Worker"
+codeunit 50103 "PaperTide Batch API Worker"
 {
     Access = Internal;
 
@@ -8,8 +8,10 @@ codeunit 50103 "Batch API Worker"
 
     procedure ProcessDocument(EntryNo: Integer)
     var
-        ImportDocHeader: Record "Import Document Header";
-        InvoiceExtraction: Codeunit "Invoice Extraction";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
+        AISetup: Record "PaperTide AI Setup";
+        InvoiceExtraction: Codeunit "PaperTide Invoice Extraction";
+        GLAccountPredictor: Codeunit "PaperTide GL Account Predictor";
         ExtractedData: JsonObject;
         MediaId: Guid;
     begin
@@ -35,6 +37,11 @@ codeunit 50103 "Batch API Worker"
         // Parse and save to Import Document tables
         InvoiceExtraction.ParseAndSaveToImportDoc(ExtractedData, ImportDocHeader);
 
+        // Run GL account prediction as a separate step
+        if AISetup.Get() and AISetup."Enable Auto Coding" then
+            if not GLAccountPredictor.TryPredictGLAccounts(ImportDocHeader."Entry No.") then
+                ;  // Silent fallback — lines keep default GL accounts
+
         // Mark as ready for review
         ImportDocHeader.Status := ImportDocHeader.Status::Ready;
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Completed;
@@ -47,13 +54,13 @@ codeunit 50103 "Batch API Worker"
     [TryFunction]
     local procedure ExtractFromImageWithErrorHandling(MediaId: Guid; var ExtractedData: JsonObject)
     var
-        AIVisionAPI: Codeunit "AI Vision API";
+        AIVisionAPI: Codeunit "PaperTide AI Vision API";
     begin
         if not AIVisionAPI.ExtractFromImage(MediaId, ExtractedData) then
             Error('Failed to extract data from image');
     end;
 
-    local procedure MarkAsError(var ImportDocHeader: Record "Import Document Header"; ErrorMsg: Text)
+    local procedure MarkAsError(var ImportDocHeader: Record "PaperTide Import Doc. Header"; ErrorMsg: Text)
     begin
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Error;
         ImportDocHeader."Error Message" := CopyStr(ErrorMsg, 1, 2048);
@@ -65,7 +72,7 @@ codeunit 50103 "Batch API Worker"
 
     local procedure ProcessNextIfAvailable()
     var
-        BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+        BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
     begin
         // Start next pending document if concurrency allows
         if BatchProcessingMgt.IsConcurrencyAvailable() then

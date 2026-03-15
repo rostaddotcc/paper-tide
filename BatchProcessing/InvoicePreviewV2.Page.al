@@ -1,8 +1,8 @@
-page 50101 "Invoice Preview"
+page 50101 "PaperTide Invoice Preview"
 {
-    Caption = 'Invoice Preview';
+    Caption = 'PaperTide Invoice Preview';
     PageType = Card;
-    SourceTable = "Import Document Header";
+    SourceTable = "PaperTide Import Doc. Header";
     DataCaptionExpression = Rec."File Name";
     InsertAllowed = false;
     DeleteAllowed = false;
@@ -190,7 +190,7 @@ page 50101 "Invoice Preview"
                 }
             }
 
-            part(Lines; "Invoice Preview Subform V2")
+            part(Lines; "PaperTide Inv. Preview Subform")
             {
                 ApplicationArea = All;
                 Caption = 'Lines';
@@ -258,7 +258,7 @@ page 50101 "Invoice Preview"
 
         area(FactBoxes)
         {
-            part(ImagePreview; "Invoice Image FactBox V2")
+            part(ImagePreview; "PaperTide Inv. Image FactBox")
             {
                 ApplicationArea = All;
                 Caption = 'Original Image';
@@ -284,7 +284,7 @@ page 50101 "Invoice Preview"
 
                 trigger OnAction()
                 var
-                    InvoiceExtraction: Codeunit "Invoice Extraction";
+                    InvoiceExtraction: Codeunit "PaperTide Invoice Extraction";
                     InvoiceNo: Code[20];
                 begin
                     if not ValidateBeforeCreate() then
@@ -341,6 +341,27 @@ page 50101 "Invoice Preview"
                         OpenPurchaseInvoice(Rec."Created Invoice No.");
                 end;
             }
+            action(SuggestGLAccounts)
+            {
+                ApplicationArea = All;
+                Caption = 'Suggest G/L Accounts';
+                ToolTip = 'Run AI-powered GL account classification on invoice lines';
+                Image = Suggest;
+                Promoted = true;
+                PromotedCategory = Process;
+                PromotedIsBig = true;
+                Enabled = CanSuggestGLAccounts;
+
+                trigger OnAction()
+                var
+                    GLAccountPredictor: Codeunit "PaperTide GL Account Predictor";
+                begin
+                    SaveChanges();
+                    GLAccountPredictor.PredictGLAccounts(Rec."Entry No.");
+                    CurrPage.Update(false);
+                    Message('GL account suggestions have been updated.');
+                end;
+            }
             action(RunVerification)
             {
                 ApplicationArea = All;
@@ -354,7 +375,7 @@ page 50101 "Invoice Preview"
 
                 trigger OnAction()
                 var
-                    InvoiceExtraction: Codeunit "Invoice Extraction";
+                    InvoiceExtraction: Codeunit "PaperTide Invoice Extraction";
                 begin
                     SaveChanges();
                     InvoiceExtraction.VerifyVendorData(Rec);
@@ -408,31 +429,39 @@ page 50101 "Invoice Preview"
     }
 
     trigger OnOpenPage()
+    var
+        AISetup: Record "PaperTide AI Setup";
     begin
         // Lock page if invoice already created
         if Rec."Created Invoice No." <> '' then begin
             IsEditable := false;
             CanCreateInvoice := false;
+            CanSuggestGLAccounts := false;
             PageLocked := true;
             Message('This document has already been processed. Purchase Invoice %1 has been created.', Rec."Created Invoice No.");
         end else begin
             IsEditable := false;
             CanCreateInvoice := (Rec.Status = Rec.Status::Ready);
             PageLocked := false;
+            CanSuggestGLAccounts := (not PageLocked) and AISetup.Get() and AISetup."Enable Auto Coding";
         end;
         LoadAmounts();
     end;
 
     trigger OnAfterGetRecord()
+    var
+        AISetup: Record "PaperTide AI Setup";
     begin
         // Lock page if invoice already created
         if Rec."Created Invoice No." <> '' then begin
             CanCreateInvoice := false;
+            CanSuggestGLAccounts := false;
             IsEditable := false;
             PageLocked := true;
         end else begin
             CanCreateInvoice := (Rec.Status = Rec.Status::Ready);
             PageLocked := false;
+            CanSuggestGLAccounts := (not PageLocked) and AISetup.Get() and AISetup."Enable Auto Coding";
         end;
 
         // Set verification style
@@ -472,7 +501,7 @@ page 50101 "Invoice Preview"
 
     local procedure LoadAmounts()
     var
-        ImportDocLine: Record "Import Document Line";
+        ImportDocLine: Record "PaperTide Import Doc. Line";
     begin
         // Calculate totals from lines
         Rec."Amount Excl. VAT" := 0;
@@ -492,7 +521,7 @@ page 50101 "Invoice Preview"
     local procedure UpdateVendorName()
     var
         Vendor: Record Vendor;
-        InvoiceExtraction: Codeunit "Invoice Extraction";
+        InvoiceExtraction: Codeunit "PaperTide Invoice Extraction";
     begin
         if Vendor.Get(Rec."Vendor No.") then begin
             SaveVendorNameMapping(Rec."Vendor Name", Rec."Vendor No.", Vendor.Name);
@@ -506,7 +535,7 @@ page 50101 "Invoice Preview"
 
     local procedure SaveVendorNameMapping(ExtractedName: Text[100]; VendorNo: Code[20]; ActualVendorName: Text[100])
     var
-        VendorNameMapping: Record "Vendor Name Mapping";
+        VendorNameMapping: Record "PaperTide Vendor Name Mapping";
     begin
         if (ExtractedName = '') or (VendorNo = '') then
             exit;
@@ -591,6 +620,7 @@ page 50101 "Invoice Preview"
     var
         IsEditable: Boolean;
         CanCreateInvoice: Boolean;
+        CanSuggestGLAccounts: Boolean;
         PageLocked: Boolean;
         HasError: Boolean;
         ProcessingStatusStyle: Text;

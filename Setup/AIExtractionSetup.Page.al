@@ -1,8 +1,8 @@
-page 50100 "AI Extraction Setup"
+page 50100 "PaperTide AI Setup"
 {
-    Caption = 'AI Extraction Setup';
+    Caption = 'PaperTide AI Setup';
     PageType = Card;
-    SourceTable = "AI Extraction Setup";
+    SourceTable = "PaperTide AI Setup";
     UsageCategory = Administration;
     ApplicationArea = All;
     InsertAllowed = false;
@@ -76,6 +76,75 @@ page 50100 "AI Extraction Setup"
                 }
             }
 
+            group(AutoCoding)
+            {
+                Caption = 'Auto Coding';
+
+                field("Enable Auto Coding"; Rec."Enable Auto Coding")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'When enabled, a separate text AI model classifies invoice lines against the chart of accounts after extraction';
+                }
+                group(CodingModelConnection)
+                {
+                    Caption = 'Coding Model Connection';
+                    Visible = Rec."Enable Auto Coding";
+
+                    field("Coding API Base URL"; Rec."Coding API Base URL")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Base URL for the coding/classification AI API';
+                    }
+                    field("Coding API Key"; Rec."Coding API Key")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'API key for the coding/classification AI service';
+                        ExtendedDatatype = Masked;
+                    }
+                    field("Coding Model Name"; Rec."Coding Model Name")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Model name for GL account classification';
+                    }
+                }
+                group(CodingParameters)
+                {
+                    Caption = 'Coding Parameters';
+                    Visible = Rec."Enable Auto Coding";
+
+                    field("Coding Max Tokens"; Rec."Coding Max Tokens")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Maximum tokens for coding AI response';
+                    }
+                    field("Coding Temperature"; Rec."Coding Temperature")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Temperature for coding AI (0.0 = deterministic)';
+                    }
+                    field("Coding Request Timeout (ms)"; Rec."Coding Request Timeout (ms)")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Timeout for coding API requests in milliseconds';
+                    }
+                    field("Chart Context Max Accounts"; Rec."Chart Context Max Accounts")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Maximum number of G/L accounts to include in coding AI context';
+                    }
+                    field("Coding History Invoices"; Rec."Coding History Invoices")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Number of recent posted invoices per vendor to include as historical context (0 = no history)';
+                    }
+                    field("Coding History Days"; Rec."Coding History Days")
+                    {
+                        ApplicationArea = All;
+                        ToolTip = 'Only include posted invoices from the last N days (0 = no date limit)';
+                    }
+                }
+            }
+
             group(SystemPrompt)
             {
                 Caption = 'System Prompt';
@@ -131,7 +200,7 @@ page 50100 "AI Extraction Setup"
 
                 trigger OnAction()
                 var
-                    AIVisionAPI: Codeunit "AI Vision API";
+                    AIVisionAPI: Codeunit "PaperTide AI Vision API";
                 begin
                     if AIVisionAPI.TestConnection() then
                         Message('Connection successful! API is reachable.')
@@ -168,7 +237,7 @@ page 50100 "AI Extraction Setup"
 
                 trigger OnAction()
                 var
-                    PDFConverter: Codeunit "PDF Converter";
+                    PDFConverter: Codeunit "PaperTide PDF Converter";
                 begin
                     if PDFConverter.TestConnection() then
                         Message('PDF conversion service is reachable and healthy.')
@@ -184,7 +253,7 @@ page 50100 "AI Extraction Setup"
                 Image = Refresh;
                 Promoted = true;
                 PromotedCategory = Process;
-                Enabled = Rec."Enable AI GL Suggestion";
+                Enabled = Rec."Enable AI GL Suggestion" or Rec."Enable Auto Coding";
 
                 trigger OnAction()
                 begin
@@ -192,16 +261,35 @@ page 50100 "AI Extraction Setup"
                     Message('Chart of accounts refreshed successfully. AI will use the updated account list for suggestions.');
                 end;
             }
-        }
+            action(TestCodingConnection)
+            {
+                ApplicationArea = All;
+                Caption = 'Test Coding Connection';
+                ToolTip = 'Test the connection to the coding/classification AI API';
+                Image = TestDatabase;
+                Promoted = true;
+                PromotedCategory = Process;
+                Enabled = Rec."Enable Auto Coding";
+
+                trigger OnAction()
+                var
+                    GLAccountPredictor: Codeunit "PaperTide GL Account Predictor";
+                begin
+                    if GLAccountPredictor.TestCodingConnection() then
+                        Message('Coding API connection successful!')
+                    else
+                        Message('Coding API connection failed. Please check your settings.');
+                end;
+            }
             action(VendorNameMappings)
             {
                 ApplicationArea = All;
-                Caption = 'Vendor Name Mappings';
+                Caption = 'PaperTide Vendor Mappings';
                 ToolTip = 'View and manage vendor name alias mappings learned from user corrections';
                 Image = Relationship;
                 Promoted = true;
                 PromotedCategory = Process;
-                RunObject = page "Vendor Name Mapping List";
+                RunObject = page "PaperTide Vendor Mappings";
             }
         }
         area(Creation)

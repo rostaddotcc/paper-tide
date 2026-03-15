@@ -1,4 +1,4 @@
-codeunit 50102 "Batch Processing Mgt"
+codeunit 50102 "PaperTide Batch Processing Mgt"
 {
     Access = Internal;
 
@@ -8,7 +8,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     local procedure GetMaxConcurrency(): Integer
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
     begin
         if Setup.Get() and (Setup."Max Concurrency" > 0) then
             exit(Setup."Max Concurrency");
@@ -17,7 +17,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     procedure StartProcessingWithConcurrency()
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
         ActiveCount: Integer;
         SlotsAvailable: Integer;
         i: Integer;
@@ -48,7 +48,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     procedure ProcessNextPending()
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
         ActiveCount: Integer;
     begin
         MaxConcurrency := GetMaxConcurrency();
@@ -68,9 +68,9 @@ codeunit 50102 "Batch Processing Mgt"
             StartProcessingDocument(ImportDocHeader);
     end;
 
-    local procedure StartProcessingDocument(var ImportDocHeader: Record "Import Document Header")
+    local procedure StartProcessingDocument(var ImportDocHeader: Record "PaperTide Import Doc. Header")
     var
-        BatchAPIWorker: Codeunit "Batch API Worker";
+        BatchAPIWorker: Codeunit "PaperTide Batch API Worker";
     begin
         // Update status to processing
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Processing;
@@ -85,7 +85,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     procedure RetryDocument(EntryNo: Integer)
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
     begin
         if ImportDocHeader.Get(EntryNo) then begin
             ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Pending;
@@ -100,7 +100,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     procedure GetActiveProcessingCount(): Integer
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
     begin
         ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Processing);
         exit(ImportDocHeader.Count());
@@ -118,7 +118,7 @@ codeunit 50102 "Batch Processing Mgt"
 
     procedure IsValidUploadExtension(FileExtension: Text): Boolean
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
     begin
         if IsValidImageExtension(FileExtension) then
             exit(true);

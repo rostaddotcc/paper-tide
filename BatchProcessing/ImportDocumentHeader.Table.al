@@ -1,6 +1,6 @@
-table 50102 "Import Document Header"
+table 50102 "PaperTide Import Doc. Header"
 {
-    Caption = 'Import Document Header';
+    Caption = 'PaperTide Import Doc. Header';
     DataClassification = CustomerContent;
 
     fields
@@ -27,13 +27,13 @@ table 50102 "Import Document Header"
             DataClassification = SystemMetadata;
             TableRelation = User."User Name";
         }
-        field(5; Status; Enum "Import Document Status")
+        field(5; Status; Enum "PaperTide Import Doc. Status")
         {
             Caption = 'Status';
             DataClassification = SystemMetadata;
             InitValue = Pending;
         }
-        field(6; "Processing Status"; Enum "Import Processing Status")
+        field(6; "Processing Status"; Enum "PaperTide Import Proc. Status")
         {
             Caption = 'Processing Status';
             DataClassification = SystemMetadata;
@@ -161,7 +161,7 @@ table 50102 "Import Document Header"
             Caption = 'Is PDF';
             DataClassification = SystemMetadata;
         }
-        field(31; "Verification Status"; Enum "Invoice Verification Status")
+        field(31; "Verification Status"; Enum "PaperTide Inv. Verif. Status")
         {
             Caption = 'Verification Status';
             DataClassification = SystemMetadata;
@@ -201,7 +201,7 @@ table 50102 "Import Document Header"
     end;
 }
 
-enum 50100 "Import Document Status"
+enum 50100 "PaperTide Import Doc. Status"
 {
     Extensible = true;
 
@@ -223,7 +223,7 @@ enum 50100 "Import Document Status"
     }
 }
 
-enum 50101 "Import Processing Status"
+enum 50101 "PaperTide Import Proc. Status"
 {
     Extensible = true;
 
@@ -245,7 +245,7 @@ enum 50101 "Import Processing Status"
     }
 }
 
-enum 50102 "Invoice Verification Status"
+enum 50102 "PaperTide Inv. Verif. Status"
 {
     Extensible = true;
 

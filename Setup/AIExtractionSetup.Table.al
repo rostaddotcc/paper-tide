@@ -1,6 +1,6 @@
-table 50100 "AI Extraction Setup"
+table 50100 "PaperTide AI Setup"
 {
-    Caption = 'AI Extraction Setup';
+    Caption = 'PaperTide AI Setup';
     DataClassification = CustomerContent;
 
     fields
@@ -111,6 +111,93 @@ table 50100 "AI Extraction Setup"
             ToolTip = 'Optional API key if the PDF conversion service requires authentication';
             ExtendedDatatype = Masked;
         }
+        field(110; "Enable Auto Coding"; Boolean)
+        {
+            Caption = 'Enable Auto Coding';
+            DataClassification = CustomerContent;
+            ToolTip = 'When enabled, a separate text AI model classifies invoice lines against the chart of accounts after extraction';
+            InitValue = false;
+        }
+        field(111; "Coding API Base URL"; Text[250])
+        {
+            Caption = 'Coding API Base URL';
+            DataClassification = CustomerContent;
+            ToolTip = 'Base URL for the coding/classification AI API (e.g., https://api.openai.com/v1)';
+        }
+        field(112; "Coding API Key"; Text[250])
+        {
+            Caption = 'Coding API Key';
+            DataClassification = CustomerContent;
+            ToolTip = 'API key for the coding/classification AI service';
+            ExtendedDatatype = Masked;
+        }
+        field(113; "Coding Model Name"; Text[50])
+        {
+            Caption = 'Coding Model Name';
+            DataClassification = CustomerContent;
+            ToolTip = 'Model name for GL account classification (e.g., qwen3-32b, gpt-4o-mini)';
+        }
+        field(114; "Coding Max Tokens"; Integer)
+        {
+            Caption = 'Coding Max Tokens';
+            DataClassification = CustomerContent;
+            ToolTip = 'Maximum tokens for the coding AI response';
+            InitValue = 1024;
+            MinValue = 100;
+            MaxValue = 4096;
+        }
+        field(115; "Coding Temperature"; Decimal)
+        {
+            Caption = 'Coding Temperature';
+            DataClassification = CustomerContent;
+            ToolTip = 'Temperature for coding AI (0.0 = deterministic)';
+            InitValue = 0.0;
+            MinValue = 0.0;
+            MaxValue = 2.0;
+            DecimalPlaces = 0 : 2;
+        }
+        field(116; "Coding Request Timeout (ms)"; Integer)
+        {
+            Caption = 'Coding Request Timeout (ms)';
+            DataClassification = CustomerContent;
+            ToolTip = 'Timeout in milliseconds for coding API requests';
+            InitValue = 30000;
+            MinValue = 5000;
+            MaxValue = 120000;
+        }
+        field(117; "Coding System Prompt"; Blob)
+        {
+            Caption = 'Coding System Prompt';
+            DataClassification = CustomerContent;
+            ToolTip = 'System prompt for the GL account classification AI';
+        }
+        field(118; "Chart Context Max Accounts"; Integer)
+        {
+            Caption = 'Chart Context Max Accounts';
+            DataClassification = CustomerContent;
+            ToolTip = 'Maximum number of G/L accounts to include in the coding AI context';
+            InitValue = 200;
+            MinValue = 10;
+            MaxValue = 1000;
+        }
+        field(119; "Coding History Invoices"; Integer)
+        {
+            Caption = 'Coding History Invoices';
+            DataClassification = CustomerContent;
+            ToolTip = 'Number of recent posted invoices per vendor to include as historical context (0 = no history)';
+            InitValue = 10;
+            MinValue = 0;
+            MaxValue = 50;
+        }
+        field(120; "Coding History Days"; Integer)
+        {
+            Caption = 'Coding History Days';
+            DataClassification = CustomerContent;
+            ToolTip = 'Only include posted invoices from the last N days as historical context (0 = no date limit)';
+            InitValue = 0;
+            MinValue = 0;
+            MaxValue = 3650;
+        }
     }
 
     keys
@@ -192,6 +279,10 @@ table 50100 "AI Extraction Setup"
     begin
         PromptText := GetSystemPrompt();
 
+        // If Auto Coding is enabled, skip chart of accounts in vision prompt (text model handles it separately)
+        if "Enable Auto Coding" then
+            exit(PromptText);
+
         if not "Enable AI GL Suggestion" then
             exit(PromptText);
 
@@ -260,7 +351,10 @@ table 50100 "AI Extraction Setup"
         OutStream: OutStream;
         Context: Text;
     begin
-        Context := BuildChartOfAccountsContext();
+        if "Enable Auto Coding" then
+            Context := BuildChartOfAccountsContextV2()
+        else
+            Context := BuildChartOfAccountsContext();
         Clear("Chart of Accounts Context");
         if Context <> '' then begin
             "Chart of Accounts Context".CreateOutStream(OutStream, TextEncoding::UTF8);
@@ -269,7 +363,86 @@ table 50100 "AI Extraction Setup"
         Modify();
     end;
 
-    procedure GetOrCreateSetup(): Record "AI Extraction Setup"
+    procedure BuildChartOfAccountsContextV2(): Text
+    var
+        GLAccount: Record "G/L Account";
+        Context: Text;
+        LineCount: Integer;
+        MaxAccounts: Integer;
+    begin
+        Context := '';
+        LineCount := 0;
+        MaxAccounts := "Chart Context Max Accounts";
+        if MaxAccounts <= 0 then
+            MaxAccounts := 200;
+
+        GLAccount.SetRange("Account Type", GLAccount."Account Type"::Posting);
+        GLAccount.SetRange(Blocked, false);
+
+        if GLAccount.FindSet() then begin
+            repeat
+                if Context <> '' then
+                    Context += '\n';
+                Context += '- ' + GLAccount."No." + ': ' + GLAccount.Name;
+                if Format(GLAccount."Account Category") <> '' then
+                    Context += ' (Category: ' + Format(GLAccount."Account Category") + ')';
+                if GLAccount."Account Subcategory Descript." <> '' then
+                    Context += ' [' + GLAccount."Account Subcategory Descript." + ']';
+                LineCount += 1;
+
+                if LineCount >= MaxAccounts then
+                    break;
+            until GLAccount.Next() = 0;
+        end;
+
+        exit(Context);
+    end;
+
+    procedure GetCodingSystemPrompt(): Text
+    var
+        TypeHelper: Codeunit "Type Helper";
+        InStream: InStream;
+        PromptText: Text;
+    begin
+        CalcFields("Coding System Prompt");
+        if "Coding System Prompt".HasValue() then begin
+            "Coding System Prompt".CreateInStream(InStream, TextEncoding::UTF8);
+            PromptText := TypeHelper.ReadAsTextWithSeparator(InStream, TypeHelper.LFSeparator());
+            exit(PromptText);
+        end;
+        exit(GetDefaultCodingSystemPrompt());
+    end;
+
+    procedure SetCodingSystemPrompt(PromptText: Text)
+    var
+        OutStream: OutStream;
+    begin
+        Clear("Coding System Prompt");
+        if PromptText <> '' then begin
+            "Coding System Prompt".CreateOutStream(OutStream, TextEncoding::UTF8);
+            OutStream.WriteText(PromptText);
+        end;
+    end;
+
+    procedure GetDefaultCodingSystemPrompt(): Text
+    begin
+        exit(
+            'You are an expert accounting classification system. Assign the most appropriate ' +
+            'G/L account number to each invoice line based on its description.\n\n' +
+            'Rules:\n' +
+            '1. Only use account numbers from the provided chart of accounts.\n' +
+            '2. Consider the line description, amount, vendor context, and posting history.\n' +
+            '3. If posting history is provided, strongly prefer the same accounts and dimensions ' +
+            'used for similar line descriptions from the same vendor.\n' +
+            '4. Return ONLY valid JSON array, one object per line, same order as input.\n' +
+            '5. Each object: {"LineNo": 10000, "GLAccountNo": "6110", "Confidence": "High", "Reason": "..."}\n' +
+            '6. Confidence levels: "High" = strong match from history or obvious category, ' +
+            '"Medium" = reasonable match, "Low" = uncertain.\n' +
+            '7. If unsure, return empty GLAccountNo with Confidence "Low".'
+        );
+    end;
+
+    procedure GetOrCreateSetup(): Record "PaperTide AI Setup"
     begin
         if not Get() then begin
             Init();

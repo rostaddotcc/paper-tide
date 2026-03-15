@@ -1,8 +1,8 @@
-page 50103 "Invoice Image FactBox V2"
+page 50103 "PaperTide Inv. Image FactBox"
 {
     Caption = 'Original Image';
     PageType = CardPart;
-    SourceTable = "Import Document Header";
+    SourceTable = "PaperTide Import Doc. Header";
 
     layout
     {

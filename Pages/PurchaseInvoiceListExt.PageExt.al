@@ -1,4 +1,4 @@
-pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
+pageextension 50100 "PaperTide Purch. Inv. List Ext" extends "Purchase Invoices"
 {
     actions
     {
@@ -7,7 +7,7 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
             action(BatchUploadInvoices)
             {
                 ApplicationArea = All;
-                Caption = 'Batch Upload Invoices';
+                Caption = 'PaperTide Batch Upload';
                 ToolTip = 'Upload multiple invoice images and process them with AI extraction';
                 Image = Import;
                 Promoted = true;
@@ -16,7 +16,7 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
 
                 trigger OnAction()
                 begin
-                    Page.Run(Page::"Batch Upload");
+                    Page.Run(Page::"PaperTide Batch Upload");
                 end;
             }
             action(ViewImportQueue)
@@ -30,7 +30,7 @@ pageextension 50100 "Purch. Invoice List Ext" extends "Purchase Invoices"
 
                 trigger OnAction()
                 begin
-                    Page.Run(Page::"Import Document List");
+                    Page.Run(Page::"PaperTide Import Documents");
                 end;
             }
         }

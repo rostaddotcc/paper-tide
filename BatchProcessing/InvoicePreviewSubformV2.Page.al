@@ -1,8 +1,8 @@
-page 50102 "Invoice Preview Subform V2"
+page 50102 "PaperTide Inv. Preview Subform"
 {
     Caption = 'Lines';
     PageType = ListPart;
-    SourceTable = "Import Document Line";
+    SourceTable = "PaperTide Import Doc. Line";
     InsertAllowed = false;
     DeleteAllowed = false;
 
@@ -99,7 +99,39 @@ page 50102 "Invoice Preview Subform V2"
                         Rec.Modify();
                     end;
                 }
+                field("GL Suggestion Confidence"; Rec."GL Suggestion Confidence")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Confidence level of the AI GL account suggestion';
+                    Editable = false;
+                    StyleExpr = ConfidenceStyle;
+                    Width = 8;
+                }
+                field("GL Suggestion Reason"; Rec."GL Suggestion Reason")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Reason for the suggested GL account';
+                    Editable = false;
+                    Visible = false;
+                }
             }
         }
     }
+
+    trigger OnAfterGetRecord()
+    begin
+        case Rec."GL Suggestion Confidence" of
+            'High':
+                ConfidenceStyle := 'Favorable';
+            'Medium':
+                ConfidenceStyle := 'Ambiguous';
+            'Low':
+                ConfidenceStyle := 'Unfavorable';
+            else
+                ConfidenceStyle := 'None';
+        end;
+    end;
+
+    var
+        ConfidenceStyle: Text;
 }

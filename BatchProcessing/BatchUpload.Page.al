@@ -1,6 +1,6 @@
-page 50104 "Batch Upload"
+page 50104 "PaperTide Batch Upload"
 {
-    Caption = 'Batch Upload Invoices';
+    Caption = 'PaperTide Batch Upload';
     PageType = Card;
     UsageCategory = Tasks;
     ApplicationArea = All;
@@ -75,7 +75,7 @@ page 50104 "Batch Upload"
                 trigger OnAction(Files: List of [FileUpload])
                 var
                     CurrentFile: FileUpload;
-                    BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+                    BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
                     FileManagement: Codeunit "File Management";
                     InStream: InStream;
                     FileName: Text;
@@ -106,22 +106,18 @@ page 50104 "Batch Upload"
                 Caption = 'View Import Queue';
                 ToolTip = 'View all imported documents';
                 Image = List;
-                Promoted = true;
-                PromotedCategory = Process;
-                RunObject = page "Import Document List";
+                RunObject = page "PaperTide Import Documents";
             }
             action(AISetup)
             {
                 ApplicationArea = All;
-                Caption = 'AI Extraction Setup';
+                Caption = 'PaperTide AI Setup';
                 ToolTip = 'Configure AI extraction settings';
                 Image = Setup;
-                Promoted = true;
-                PromotedCategory = Process;
 
                 trigger OnAction()
                 begin
-                    Page.Run(Page::"AI Extraction Setup");
+                    Page.Run(Page::"PaperTide AI Setup");
                 end;
             }
             action(ProcessPending)
@@ -130,13 +126,11 @@ page 50104 "Batch Upload"
                 Caption = 'Process Pending';
                 ToolTip = 'Start processing pending documents';
                 Image = Start;
-                Promoted = true;
-                PromotedCategory = Process;
                 Enabled = HasPendingDocuments;
 
                 trigger OnAction()
                 var
-                    BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+                    BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
                 begin
                     BatchProcessingMgt.ProcessNextPending();
                     CurrPage.Update();
@@ -166,10 +160,10 @@ page 50104 "Batch Upload"
 
     local procedure ImportSingleFile(InStream: InStream; FileName: Text): Boolean
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
         FileManagement: Codeunit "File Management";
-        BatchProcessingMgt: Codeunit "Batch Processing Mgt";
-        PDFConverter: Codeunit "PDF Converter";
+        BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
+        PDFConverter: Codeunit "PaperTide PDF Converter";
         ImageTempBlob: Codeunit "Temp Blob";
         PdfTempBlob: Codeunit "Temp Blob";
         OutStream: OutStream;
@@ -233,14 +227,14 @@ page 50104 "Batch Upload"
 
     local procedure StartAutoProcessing()
     var
-        BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+        BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
     begin
         BatchProcessingMgt.StartProcessingWithConcurrency();
     end;
 
     local procedure UpdateStatusCounts()
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
     begin
         PendingCount := 0;
         ProcessingCount := 0;

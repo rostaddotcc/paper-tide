@@ -4,7 +4,7 @@
 
 **Project Name:** Paper Tide  
 **Type:** Per-Tenant Extension (PTE)  
-**Version:** 1.0.0.0  
+**Version:** 1.0.2.0
 **Target Platform:** Microsoft Dynamics 365 Business Central  
 **Minimum Version:** 2024 Release Wave 2 (v27.4)  
 **Runtime Version:** 14.0  
@@ -26,7 +26,7 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 ### In Scope (v1.0)
 
 - **Batch Import** - Upload multiple invoice images with queue management
-- **Concurrency Control** - Process up to 3 images simultaneously
+- **Concurrency Control** - Process up to 3 images simultaneously (configurable)
 - **Import Queue** - Review and manage all imported documents in a list
 - AI extraction via OpenAI-compatible vision API
 - Preview page with original image display
@@ -36,16 +36,17 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 - System prompt customization
 - Default G/L Account for invoice lines
 - **AI GL Account Suggestion** - AI analyzes chart of accounts and suggests appropriate G/L accounts per line
+- **Vendor Name Learning** - Learned vendor name aliases for automatic matching on subsequent imports
+- **Multi-Field Vendor Matching** - Match vendors by name mapping, vendor no., VAT no., bank account/IBAN, exact name, or partial name
+- **Fraud Detection** - Cross-validate extracted VAT/bank data against known vendor records
+- **Auto Coding** - Separate text AI model for G/L account prediction with confidence scoring
 
 ### Out of Scope (v1.0)
 
 - Multi-page PDF support (first page only currently)
-- Automatic vendor matching beyond exact name lookup
 - Multi-language OCR optimization
 - Mobile device camera integration
 - VAT calculation validation
-
-*Note: Automatic GL account assignment is now IN SCOPE via AI GL Account Suggestion feature*
 
 ## Architecture Decisions
 
@@ -76,10 +77,11 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 | ID | Name | Type | Records |
 |----|------|------|---------|
-| 50100 | AI Extraction Setup | Singleton | 1 |
-| 50101 | Temp Invoice Buffer | Temporary | Session-only |
-| 50102 | Import Document Header | Persistent | One per uploaded image |
-| 50103 | Import Document Line | Persistent | Invoice lines per document |
+| 50100 | PaperTide AI Setup | Singleton | 1 |
+| 50101 | PaperTide Temp Invoice Buffer | Temporary | Session-only |
+| 50102 | PaperTide Import Doc. Header | Persistent | One per uploaded image |
+| 50103 | PaperTide Import Doc. Line | Persistent | Invoice lines per document |
+| 50104 | PaperTide Vendor Name Mapping | Persistent | Learned vendor name aliases |
 
 **AI Extraction Setup Fields:**
 - API Base URL, API Key, Model Name
@@ -94,34 +96,44 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 | ID | Name | Type | Source Table |
 |----|------|------|--------------|
-| 50100 | AI Extraction Setup | Card | AI Extraction Setup |
-| 50101 | Invoice Preview | Card | Import Document Header |
-| 50102 | Invoice Preview Subform V2 | ListPart | Import Document Line |
-| 50103 | Invoice Image FactBox V2 | CardPart | Import Document Header |
-| 50104 | Batch Upload | Card | - |
-| 50105 | Import Document List | List | Import Document Header |
+| 50100 | PaperTide AI Setup | Card | PaperTide AI Setup |
+| 50101 | PaperTide Invoice Preview | Card | PaperTide Import Doc. Header |
+| 50102 | PaperTide Inv. Preview Subform | ListPart | PaperTide Import Doc. Line |
+| 50103 | PaperTide Inv. Image FactBox | CardPart | PaperTide Import Doc. Header |
+| 50104 | PaperTide Batch Upload | Card | - |
+| 50105 | PaperTide Import Documents | List | PaperTide Import Doc. Header |
+| 50106 | PaperTide Vendor Mappings | List | PaperTide Vendor Name Mapping |
 
 ### Codeunits
 
 | ID | Name | Access | Purpose |
 |----|------|--------|---------|
-| 50100 | AI Vision API | Internal | HTTP communication with AI service |
-| 50101 | Invoice Extraction | Internal | JSON parsing and invoice creation |
-| 50102 | Batch Processing Mgt | Internal | Queue management and concurrency control |
-| 50103 | Batch API Worker | Internal | Individual document processing |
-| 50104 | PDF Converter | Internal | PDF-to-image conversion via Gotenberg |
+| 50100 | PaperTide AI Vision API | Internal | HTTP communication with AI service |
+| 50101 | PaperTide Invoice Extraction | Internal | JSON parsing and invoice creation |
+| 50102 | PaperTide Batch Processing Mgt | Internal | Queue management and concurrency control |
+| 50103 | PaperTide Batch API Worker | Internal | Individual document processing |
+| 50104 | PaperTide PDF Converter | Internal | PDF-to-image conversion via Gotenberg |
+| 50106 | PaperTide GL Account Predictor | Internal | G/L account prediction via text AI model |
+
+### Enums
+
+| ID | Name | Values |
+|----|------|--------|
+| 50100 | PaperTide Import Doc. Status | Pending, Ready, Created, Discarded |
+| 50101 | PaperTide Import Proc. Status | Pending, Processing, Completed, Error |
+| 50102 | PaperTide Inv. Verif. Status | Not Checked, Verified, Warning, Suspicious |
 
 ### Page Extensions
 
 | ID | Name | Extends |
 |----|------|---------|
-| 50100 | Purch. Invoice List Ext | Purchase Invoices |
+| 50100 | PaperTide Purch. Inv. List Ext | Purchase Invoices |
 
 ### Permission Sets
 
 | ID | Name | Permissions |
 |----|------|-------------|
-| 50100 | Paper Tide | Full access to all objects |
+| 50100 | PaperTide | Full access to all objects |
 
 ## AI GL Account Suggestion Feature
 
@@ -259,7 +271,7 @@ If processing fails:
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      BATCH PROCESSING                            │
-│  Batch Processing Mgt Codeunit                                   │
+│  PaperTide Batch Processing Mgt Codeunit                         │
 │  - Queue management with concurrency control (max 3)             │
 │  - Status tracking: Pending → Processing → Ready/Error           │
 └─────────────────────────────┬───────────────────────────────────┘
@@ -267,7 +279,7 @@ If processing fails:
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      AI SERVICE CALL                             │
-│  AI Vision API Codeunit                                           │
+│  PaperTide AI Vision API Codeunit                                │
 │  - Read Image Blob → Convert to Base64                           │
 │  - HTTP POST to {API Base URL}/chat/completions                  │
 │  - Request body: model, messages (system prompt + image)         │
@@ -288,12 +300,15 @@ If processing fails:
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      DATA EXTRACTION                             │
-│  Invoice Extraction Codeunit                                     │
+│  PaperTide Invoice Extraction Codeunit                           │
 │  - Map JSON fields to Import Document fields                     │
-│  - Vendor lookup:                                                │
-│    1. By Vendor No. (exact match)                                │
-│    2. By Vendor Name (exact match)                               │
-│    3. By Vendor Name (partial match with @*...*)                 │
+│  - Vendor lookup (6-step priority):                              │
+│    1. Vendor Name Mapping (learned aliases)                      │
+│    2. By Vendor No. (exact match)                                │
+│    3. By VAT Registration No.                                    │
+│    4. By Bank Account/IBAN                                       │
+│    5. By Vendor Name (exact match)                               │
+│    6. By Vendor Name (partial match with @*...*)                 │
 │  - Parse dates (ISO 8601 format: YYYY-MM-DD)                     │
 │  - Process line items array to Import Document Line              │
 └─────────────────────────────┬───────────────────────────────────┘
@@ -312,7 +327,7 @@ If processing fails:
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      INVOICE CREATION                            │
-│  Invoice Extraction Codeunit.CreateInvoiceFromImportDoc          │
+│  PaperTide Invoice Extraction.CreateInvoiceFromImportDoc         │
 │  - Validate: Vendor No., Invoice No. required                    │
 │  - Check for duplicate Vendor Invoice No.                        │
 │  - Create Purchase Header (Document Type = Invoice)              │
@@ -418,10 +433,13 @@ Pending → Processing → Ready → Created
 
 ### Vendor Matching Logic
 
-1. **Exact Vendor No.** - If extracted VendorNo matches a Vendor record
-2. **Exact Name Match** - If Vendor Name matches exactly
-3. **Partial Name Match** - If Vendor Name contains extracted text (case-insensitive)
-4. **No Match** - User must manually select vendor in preview
+1. **Vendor Name Mapping** - Learned aliases from previous user corrections (exact match)
+2. **Exact Vendor No.** - If extracted VendorNo matches a Vendor record
+3. **VAT Registration No.** - Match extracted VAT No. against Vendor."VAT Registration No."
+4. **Bank Account/IBAN** - Match extracted bank account against registered Vendor Bank Account records
+5. **Exact Name Match** - If Vendor Name matches exactly
+6. **Partial Name Match** - If Vendor Name contains extracted text (case-insensitive wildcard)
+7. **No Match** - User must manually select vendor in preview
 
 ### Invoice Line Creation
 
@@ -477,8 +495,9 @@ If duplicate found: Error message displayed, creation blocked.
 | 1.0.0.14 | 2024-03-12 | Added "Created Invoices" counter, removed Upload Images section |
 | 1.0.0.15 | 2024-03-12 | Locked preview for created invoices, added View Created Invoice action |
 | 1.0.0.24 | 2026-03-15 | Added PDF support via Gotenberg conversion service |
+| 1.0.2.0 | 2026-03-15 | PaperTide branding, Auto Coding feature, GL Suggestion Confidence, Configurable Concurrency |
 
 ---
 
-**Document Version:** 1.2
+**Document Version:** 1.3
 **Last Updated:** 2026-03-15

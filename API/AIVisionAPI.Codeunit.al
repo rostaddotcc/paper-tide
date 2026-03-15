@@ -1,9 +1,9 @@
-codeunit 50100 "AI Vision API"
+codeunit 50100 "PaperTide AI Vision API"
 {
     Access = Internal;
 
     var
-        SetupNotConfiguredErr: Label 'AI Extraction Setup is not configured. Please configure API Base URL and API Key.';
+        SetupNotConfiguredErr: Label 'PaperTide AI Setup is not configured. Please configure API Base URL and API Key.';
         HttpRequestFailedErr: Label 'HTTP request failed with status code: %1\Error: %2';
         InvalidResponseErr: Label 'Invalid response from AI service: %1';
         RequestTimeoutErr: Label 'Request timed out after %1 ms. Please try again or increase timeout in setup.';
@@ -15,7 +15,7 @@ codeunit 50100 "AI Vision API"
 
     procedure ExtractFromImage(MediaId: Guid; var ExtractedData: JsonObject): Boolean
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
         HttpClient: HttpClient;
         HttpRequest: HttpRequestMessage;
         HttpContent: HttpContent;
@@ -71,7 +71,7 @@ codeunit 50100 "AI Vision API"
 
     procedure TestConnection(): Boolean
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
         HttpClient: HttpClient;
         HttpRequest: HttpRequestMessage;
         HttpResponse: HttpResponseMessage;
@@ -115,7 +115,7 @@ codeunit 50100 "AI Vision API"
         exit(HttpClient.Send(HttpRequest, HttpResponse) and HttpResponse.IsSuccessStatusCode());
     end;
 
-    local procedure ValidateSetup(Setup: Record "AI Extraction Setup")
+    local procedure ValidateSetup(Setup: Record "PaperTide AI Setup")
     begin
         if Setup."API Base URL" = '' then
             Error(SetupNotConfiguredErr);
@@ -128,7 +128,7 @@ codeunit 50100 "AI Vision API"
     local procedure ConvertMediaToBase64(MediaId: Guid) Base64String: Text
     var
         Base64Convert: Codeunit "Base64 Convert";
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
         InStream: InStream;
     begin
         if IsNullGuid(MediaId) then
@@ -153,7 +153,7 @@ codeunit 50100 "AI Vision API"
             Error(Base64EmptyResultErr);
     end;
 
-    local procedure BuildRequestJson(Setup: Record "AI Extraction Setup"; Base64Image: Text) RequestJson: Text
+    local procedure BuildRequestJson(Setup: Record "PaperTide AI Setup"; Base64Image: Text) RequestJson: Text
     var
         SystemPrompt: Text;
         JsonObj: JsonObject;

@@ -29,15 +29,16 @@ Upload Image/PDF → (PDF: buffer original + Gotenberg conversion) → Batch Que
 
 | Component | Purpose |
 |-----------|---------|
-| `AI Extraction Setup` (Table 50100) | Singleton config: API URL, Key, Model, Default G/L Account |
-| `Import Document Header/Line` | Persistent queue for batch processing |
-| `Vendor Name Mapping` (Table 50104) | Learned vendor name aliases for automatic matching |
-| `AI Vision API` (Codeunit 50100) | HTTP client for AI service |
-| `Invoice Extraction` (Codeunit 50101) | JSON parsing, vendor lookup, verification, invoice creation |
-| `Batch Processing Mgt` (Codeunit 50102) | Concurrency control (max 3 concurrent) |
-| `PDF Converter` (Codeunit 50104) | PDF-to-image conversion via Gotenberg |
-| `Invoice Preview` (Page 50101) | Review/edit extracted data with fraud detection and image FactBox |
-| `Vendor Name Mapping List` (Page 50106) | Manage vendor name alias mappings |
+| `PaperTide AI Setup` (Table 50100) | Singleton config: API URL, Key, Model, Default G/L Account |
+| `PaperTide Import Doc. Header/Line` | Persistent queue for batch processing |
+| `PaperTide Vendor Name Mapping` (Table 50104) | Learned vendor name aliases for automatic matching |
+| `PaperTide AI Vision API` (Codeunit 50100) | HTTP client for AI service |
+| `PaperTide Invoice Extraction` (Codeunit 50101) | JSON parsing, vendor lookup, verification, invoice creation |
+| `PaperTide Batch Processing Mgt` (Codeunit 50102) | Concurrency control (max 3 concurrent) |
+| `PaperTide PDF Converter` (Codeunit 50104) | PDF-to-image conversion via Gotenberg |
+| `PaperTide GL Account Predictor` (Codeunit 50106) | GL account classification via text AI |
+| `PaperTide Invoice Preview` (Page 50101) | Review/edit extracted data with fraud detection and image FactBox |
+| `PaperTide Vendor Mappings` (Page 50106) | Manage vendor name alias mappings |
 
 ### Status Flow
 
@@ -60,39 +61,46 @@ Pending → Processing → Ready → Created
 ## Object Structure
 
 ### Tables
-- 50100: AI Extraction Setup (singleton)
-- 50101: Temp Invoice Buffer (temporary, preview only)
-- 50102: Import Document Header (persistent queue)
-- 50103: Import Document Line (line items)
-- 50104: Vendor Name Mapping (learned vendor aliases)
+- 50100: PaperTide AI Setup (singleton)
+- 50101: PaperTide Temp Invoice Buffer (temporary, preview only)
+- 50102: PaperTide Import Doc. Header (persistent queue)
+- 50103: PaperTide Import Doc. Line (line items)
+- 50104: PaperTide Vendor Name Mapping (learned vendor aliases)
 
 ### Codeunits
-- 50100: AI Vision API (HTTP communication)
-- 50101: Invoice Extraction (parsing, vendor lookup, verification, creation logic)
-- 50102: Batch Processing Mgt (queue management)
-- 50103: Batch API Worker (individual processing)
-- 50104: PDF Converter (Gotenberg PDF-to-image)
+- 50100: PaperTide AI Vision API (HTTP communication)
+- 50101: PaperTide Invoice Extraction (parsing, vendor lookup, verification, creation logic)
+- 50102: PaperTide Batch Processing Mgt (queue management)
+- 50103: PaperTide Batch API Worker (individual processing)
+- 50104: PaperTide PDF Converter (Gotenberg PDF-to-image)
+- 50106: PaperTide GL Account Predictor (GL account classification via text AI)
 
 ### Pages
-- 50100: AI Extraction Setup Card
-- 50101: Invoice Preview (with subform + image FactBox + fraud detection)
-- 50104: Batch Upload
-- 50105: Import Document List
-- 50106: Vendor Name Mapping List
+- 50100: PaperTide AI Setup
+- 50101: PaperTide Invoice Preview (with subform + image FactBox + fraud detection)
+- 50104: PaperTide Batch Upload
+- 50105: PaperTide Import Documents
+- 50106: PaperTide Vendor Mappings
 
 ### Enums
-- 50100: Import Document Status (Pending, Ready, Created, Discarded)
-- 50101: Import Processing Status (Pending, Processing, Completed, Error)
-- 50102: Invoice Verification Status (Not Checked, Verified, Warning, Suspicious)
+- 50100: PaperTide Import Doc. Status (Pending, Ready, Created, Discarded)
+- 50101: PaperTide Import Proc. Status (Pending, Processing, Completed, Error)
+- 50102: PaperTide Inv. Verif. Status (Not Checked, Verified, Warning, Suspicious)
+
+### Permission Sets
+- 50100: PaperTide
+
+### Page Extensions
+- 50100: PaperTide Purch. Inv. List Ext
 
 ## File Organization
 
 ```
-API/                 # AIVisionAPI, Invoice Extraction, PDF Converter codeunits
+API/                 # PaperTide AI Vision API, Invoice Extraction, PDF Converter, GL Account Predictor codeunits
 BatchProcessing/     # Queue management, upload UI, import documents, preview pages
 InvoiceProcessing/   # Temp buffer, preview subforms
 Pages/               # Purchase Invoice list extension
-Setup/               # AI Extraction Setup table/page, Vendor Name Mapping table/page
+Setup/               # PaperTide AI Setup table/page, Vendor Name Mapping table/page
 ```
 
 ## Vendor Matching (LookupVendorNoExtended)
@@ -107,7 +115,7 @@ Matching priority:
 
 ## Vendor Name Learning
 
-When user changes Vendor No. in Invoice Preview and the AI-extracted name differs from the actual vendor name, a mapping is saved to `Vendor Name Mapping` table. On subsequent imports, the mapping is checked first (step 1 in lookup). Usage count is tracked per mapping.
+When user changes Vendor No. in Invoice Preview and the AI-extracted name differs from the actual vendor name, a mapping is saved to `PaperTide Vendor Name Mapping` table. On subsequent imports, the mapping is checked first (step 1 in lookup). Usage count is tracked per mapping.
 
 ## Fraud Detection (VerifyVendorData)
 
@@ -118,7 +126,7 @@ Runs automatically after AI extraction in `ParseAndSaveToImportDoc`. Cross-valid
 - Missing VAT/bank on invoice → Warning (cannot verify)
 - All matches → Verified
 
-Users can manually re-run via "Verify" action in Invoice Preview. Suspicious invoices require explicit confirmation before creation.
+Users can manually re-run via "Verify" action in PaperTide Invoice Preview. Suspicious invoices require explicit confirmation before creation.
 
 ## AI GL Account Suggestion
 

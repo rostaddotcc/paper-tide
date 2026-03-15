@@ -1,6 +1,6 @@
-table 50103 "Import Document Line"
+table 50103 "PaperTide Import Doc. Line"
 {
-    Caption = 'Import Document Line';
+    Caption = 'PaperTide Import Doc. Line';
     DataClassification = CustomerContent;
 
     fields
@@ -57,6 +57,18 @@ table 50103 "Import Document Line"
             ELSE IF (Type = CONST(Item)) Item WHERE(Blocked = CONST(false))
             ELSE IF (Type = CONST("Fixed Asset")) "Fixed Asset" WHERE(Blocked = CONST(false))
             ELSE IF (Type = CONST("Charge (Item)")) "Item Charge";
+        }
+        field(30; "GL Suggestion Confidence"; Text[10])
+        {
+            Caption = 'GL Suggestion Confidence';
+            DataClassification = CustomerContent;
+            ToolTip = 'Confidence level of the AI GL account suggestion (High, Medium, Low)';
+        }
+        field(31; "GL Suggestion Reason"; Text[250])
+        {
+            Caption = 'GL Suggestion Reason';
+            DataClassification = CustomerContent;
+            ToolTip = 'Reason provided by the AI for the suggested GL account';
         }
     }
 

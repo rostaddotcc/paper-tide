@@ -1,6 +1,6 @@
-table 50101 "Temp Invoice Buffer"
+table 50101 "PaperTide Temp Invoice Buffer"
 {
-    Caption = 'Temp Invoice Buffer';
+    Caption = 'PaperTide Temp Invoice Buffer';
     TableType = Temporary;
     DataClassification = SystemMetadata;
 
@@ -166,7 +166,7 @@ table 50101 "Temp Invoice Buffer"
         UnitPrice: Decimal;
         LineAmount: Decimal)
     var
-        TempBuffer: Record "Temp Invoice Buffer";
+        TempBuffer: Record "PaperTide Temp Invoice Buffer";
     begin
         TempBuffer.Copy(Rec);
         TempBuffer."Entry No." := "Entry No.";

@@ -1,9 +1,9 @@
-table 50104 "Vendor Name Mapping"
+table 50104 "PaperTide Vendor Name Mapping"
 {
-    Caption = 'Vendor Name Mapping';
+    Caption = 'PaperTide Vendor Name Mapping';
     DataClassification = CustomerContent;
-    LookupPageId = "Vendor Name Mapping List";
-    DrillDownPageId = "Vendor Name Mapping List";
+    LookupPageId = "PaperTide Vendor Mappings";
+    DrillDownPageId = "PaperTide Vendor Mappings";
 
     fields
     {

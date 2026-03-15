@@ -1,10 +1,10 @@
-page 50106 "Vendor Name Mapping List"
+page 50106 "PaperTide Vendor Mappings"
 {
-    Caption = 'Vendor Name Mappings';
+    Caption = 'PaperTide Vendor Mappings';
     PageType = List;
     ApplicationArea = All;
     UsageCategory = Lists;
-    SourceTable = "Vendor Name Mapping";
+    SourceTable = "PaperTide Vendor Name Mapping";
     Editable = true;
 
     layout

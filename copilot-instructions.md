@@ -1,10 +1,10 @@
-# Paper Tide - Copilot Instructions
+# PaperTide - Copilot Instructions
 
 This document contains coding patterns, conventions, and architectural guidelines for working with this Business Central AL extension codebase.
 
 ## Project Overview
 
-**Extension Name:** Paper Tide  
+**Extension Name:** PaperTide
 **Purpose:** AI-driven OCR for purchase invoices using OpenAI-compatible vision APIs
 **Object ID Range:** 50100-50149  
 **Runtime:** 14.0  
@@ -161,12 +161,12 @@ page 50100 "Page Name"
 ### 2.1 Object Naming
 | Object Type | Pattern | Example |
 |-------------|---------|---------|
-| Table | Descriptive noun | `"Import Document Header"` |
-| Table (Temporary) | "Temp" prefix | `"Temp Invoice Buffer"` |
-| Codeunit | Descriptive noun | `"Invoice Extraction"` |
-| Page | Descriptive noun | `"Invoice Preview"` |
-| PageExtension | "Ext" suffix | `"Purch. Invoice List Ext"` |
-| Enum | Descriptive status name | `"Import Document Status"` |
+| Table | "PaperTide" prefix + descriptive noun | `"PaperTide Import Doc. Header"` |
+| Table (Temporary) | "PaperTide Temp" prefix | `"PaperTide Temp Invoice Buffer"` |
+| Codeunit | "PaperTide" prefix + descriptive noun | `"PaperTide Invoice Extraction"` |
+| Page | "PaperTide" prefix + descriptive noun | `"PaperTide Invoice Preview"` |
+| PageExtension | "PaperTide" prefix + "Ext" suffix | `"PaperTide Purch. Inv. List Ext"` |
+| Enum | "PaperTide" prefix + descriptive name | `"PaperTide Import Doc. Status"` |
 
 ### 2.2 Variable Naming
 | Type | Pattern | Example |
@@ -195,7 +195,7 @@ Define error messages as global labels with descriptive names:
 
 ```al
 var
-    SetupNotConfiguredErr: Label 'AI Extraction Setup is not configured. Please configure API Base URL and API Key.';
+    SetupNotConfiguredErr: Label 'PaperTide AI Setup is not configured. Please configure API Base URL and API Key.';
     HttpRequestFailedErr: Label 'HTTP request failed with status code: %1\Error: %2';
     InvalidResponseErr: Label 'Invalid response from AI service: %1';
     RequestTimeoutErr: Label 'Request timed out after %1 ms. Please try again or increase timeout in setup.';
@@ -203,7 +203,7 @@ var
 
 ### 3.2 Validation Pattern
 ```al
-local procedure ValidateSetup(Setup: Record "AI Extraction Setup")
+local procedure ValidateSetup(Setup: Record "PaperTide AI Setup")
 begin
     if Setup."API Base URL" = '' then
         Error(SetupNotConfiguredErr);
@@ -235,7 +235,7 @@ end;
 
 ### 3.4 Error Logging Pattern
 ```al
-local procedure MarkAsError(var ImportDocHeader: Record "Import Document Header"; ErrorMsg: Text)
+local procedure MarkAsError(var ImportDocHeader: Record "PaperTide Import Doc. Header"; ErrorMsg: Text)
 begin
     ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Error;
     ImportDocHeader."Error Message" := CopyStr(ErrorMsg, 1, 2048);  // Respect field length
@@ -267,7 +267,7 @@ if not HttpClient.Send(HttpRequest, HttpResponse) then
 ```al
 procedure ExtractFromImage(Media: Media; var ExtractedData: JsonObject): Boolean
 var
-    Setup: Record "AI Extraction Setup";
+    Setup: Record "PaperTide AI Setup";
     HttpClient: HttpClient;
     HttpRequest: HttpRequestMessage;
     HttpContent: HttpContent;
@@ -311,7 +311,7 @@ end;
 
 ### 4.2 JSON Building Pattern
 ```al
-local procedure BuildRequestJson(Setup: Record "AI Extraction Setup"; Base64Image: Text) RequestJson: Text
+local procedure BuildRequestJson(Setup: Record "PaperTide AI Setup"; Base64Image: Text) RequestJson: Text
 var
     JsonObj: JsonObject;
     MessagesArr: JsonArray;
@@ -405,9 +405,9 @@ end;
 Used for preview/editing before committing to permanent records:
 
 ```al
-table 50101 "Temp Invoice Buffer"
+table 50101 "PaperTide Temp Invoice Buffer"
 {
-    Caption = 'Temp Invoice Buffer';
+    Caption = 'PaperTide Temp Invoice Buffer';
     TableType = Temporary;  // Critical: data is session-only
     DataClassification = SystemMetadata;
 
@@ -435,14 +435,14 @@ table 50101 "Temp Invoice Buffer"
 Concurrency-controlled document processing:
 
 ```al
-codeunit 50102 "Batch Processing Mgt"
+codeunit 50102 "PaperTide Batch Processing Mgt"
 {
     var
         MaxConcurrency: Integer;
 
     procedure StartProcessingWithConcurrency()
     var
-        ImportDocHeader: Record "Import Document Header";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
         ActiveCount: Integer;
         SlotsAvailable: Integer;
     begin
@@ -474,7 +474,7 @@ Documents track both workflow status and processing status:
 
 ```al
 // Workflow status
-enum 50100 "Import Document Status"
+enum 50100 "PaperTide Import Doc. Status"
 {
     value(0; Pending)       { Caption = 'Pending'; }
     value(1; Ready)         { Caption = 'Ready for Review'; }
@@ -483,7 +483,7 @@ enum 50100 "Import Document Status"
 }
 
 // Processing status
-enum 50101 "Import Processing Status"
+enum 50101 "PaperTide Import Proc. Status"
 {
     value(0; Pending)       { Caption = 'Pending'; }
     value(1; Processing)    { Caption = 'Processing'; }
@@ -496,7 +496,7 @@ enum 50101 "Import Processing Status"
 Single-record setup table with helper methods:
 
 ```al
-table 50100 "AI Extraction Setup"
+table 50100 "PaperTide AI Setup"
 {
     fields
     {
@@ -514,7 +514,7 @@ table 50100 "AI Extraction Setup"
         end;
     end;
 
-    procedure GetOrCreateSetup(): Record "AI Extraction Setup"
+    procedure GetOrCreateSetup(): Record "PaperTide AI Setup"
     begin
         if not Get() then begin
             Init();
@@ -572,13 +572,13 @@ end;
 
 ### 6.1 Invoice Processing Flow
 ```
-Image Upload → Import Document Header (Pending)
+Image Upload → PaperTide Import Doc. Header (Pending)
                     ↓
-         Batch Processing Mgt (concurrency control)
+         PaperTide Batch Processing Mgt (concurrency control)
                     ↓
-         Batch API Worker → AI Vision API
+         PaperTide Batch API Worker → PaperTide AI Vision API
                     ↓
-         ParseAndSaveToImportDoc → Import Document Header (Ready)
+         ParseAndSaveToImportDoc → PaperTide Import Doc. Header (Ready)
                     ↓
          User Review → CreateInvoiceFromImportDoc
                     ↓
@@ -587,9 +587,9 @@ Image Upload → Import Document Header (Pending)
 
 ### 6.2 Single Invoice Flow (Direct)
 ```
-Image Upload → Temp Invoice Buffer (temporary preview)
+Image Upload → PaperTide Temp Invoice Buffer (temporary preview)
                     ↓
-         AI Vision API → ParseAndFillBuffer
+         PaperTide AI Vision API → ParseAndFillBuffer
                     ↓
          User Review → CreatePurchaseInvoice
                     ↓
@@ -617,27 +617,33 @@ Image Upload → Temp Invoice Buffer (temporary preview)
 
 ```
 API/
-  - InvoiceExtraction.Codeunit.al    # Core extraction logic
-  - AIVisionAPI.Codeunit.al           # API communication
+  - InvoiceExtraction.Codeunit.al    # PaperTide Invoice Extraction - core extraction logic
+  - AIVisionAPI.Codeunit.al           # PaperTide AI Vision API - API communication
+  - GLAccountPredictor.Codeunit.al   # PaperTide GL Account Predictor - AI account suggestion
+  - PDFConverter.Codeunit.al         # PaperTide PDF Converter - Gotenberg integration
 
 BatchProcessing/
-  - BatchAPIWorker.Codeunit.al       # Individual document processing
-  - BatchProcessingMgt.Codeunit.al   # Concurrency management
-  - BatchUpload.Page.al              # Multi-file upload UI
-  - ImportDocumentHeader.Table.al    # Persistent import queue
-  - ImportDocumentLine.Table.al      # Line details for queue
-  - ImportDocumentList.Page.al       # Queue management UI
+  - BatchAPIWorker.Codeunit.al       # PaperTide Batch API Worker - individual document processing
+  - BatchProcessingMgt.Codeunit.al   # PaperTide Batch Processing Mgt - concurrency management
+  - BatchUpload.Page.al              # PaperTide Batch Upload - multi-file upload UI
+  - ImportDocumentHeader.Table.al    # PaperTide Import Doc. Header - persistent import queue
+  - ImportDocumentLine.Table.al      # PaperTide Import Doc. Line - line details for queue
+  - ImportDocumentList.Page.al       # PaperTide Import Document List - queue management UI
+  - InvoicePreviewV2.Page.al         # PaperTide Invoice Preview - review/edit with fraud detection
+  - InvoicePreviewSubformV2.Page.al  # PaperTide Invoice Preview Subform - lines subpage
 
 InvoiceProcessing/
-  - InvoicePreview.Page.al           # Single invoice preview
-  - InvoicePreviewSubform.Page.al    # Lines subpage
-  - InvoiceImageFactBox.Page.al      # Image preview
-  - TempInvoiceBuffer.Table.al       # Temporary preview data
+  - InvoicePreview.Page.al           # PaperTide Invoice Preview (single)
+  - InvoicePreviewSubform.Page.al    # PaperTide Invoice Preview Subform
+  - InvoiceImageFactBox.Page.al      # PaperTide Invoice Image FactBox
+  - TempInvoiceBuffer.Table.al       # PaperTide Temp Invoice Buffer
 
 Pages/
-  - PurchaseInvoiceListExt.PageExt.al # Entry points from Purchase Invoices
+  - PurchaseInvoiceListExt.PageExt.al # PaperTide Purch. Inv. List Ext
 
 Setup/
-  - AIExtractionSetup.Table.al       # Configuration table
-  - AIExtractionSetup.Page.al        # Configuration UI
+  - AIExtractionSetup.Table.al       # PaperTide AI Setup - configuration table
+  - AIExtractionSetup.Page.al        # PaperTide AI Setup - configuration UI
+  - VendorNameMapping.Table.al       # PaperTide Vendor Name Mapping - learned aliases
+  - VendorNameMappingList.Page.al    # PaperTide Vendor Name Mapping List
 ```

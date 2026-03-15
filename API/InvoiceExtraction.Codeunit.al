@@ -1,4 +1,4 @@
-codeunit 50101 "Invoice Extraction"
+codeunit 50101 "PaperTide Invoice Extraction"
 {
     Access = Internal;
 
@@ -11,7 +11,7 @@ codeunit 50101 "Invoice Extraction"
     procedure ParseAndFillBuffer(
         ExtractedData: JsonObject;
         MediaId: Guid;
-        var TempBuffer: Record "Temp Invoice Buffer")
+        var TempBuffer: Record "PaperTide Temp Invoice Buffer")
     var
         JsonToken: JsonToken;
         LinesArr: JsonArray;
@@ -86,7 +86,7 @@ codeunit 50101 "Invoice Extraction"
     var
         Vendor: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
-        VendorNameMapping: Record "Vendor Name Mapping";
+        VendorNameMapping: Record "PaperTide Vendor Name Mapping";
     begin
         // Step 0: Check vendor name mapping table first
         if VendorName <> '' then
@@ -140,7 +140,7 @@ codeunit 50101 "Invoice Extraction"
     end;
 
     local procedure ParseAndInsertLine(
-        var TempBuffer: Record "Temp Invoice Buffer";
+        var TempBuffer: Record "PaperTide Temp Invoice Buffer";
         LineNo: Integer;
         LineObj: JsonObject)
     var
@@ -161,12 +161,12 @@ codeunit 50101 "Invoice Extraction"
         TempBuffer.AddLine(LineNo, Description, Quantity, UnitPrice, LineAmount);
     end;
 
-    procedure CreatePurchaseInvoice(TempBuffer: Record "Temp Invoice Buffer"): Code[20]
+    procedure CreatePurchaseInvoice(TempBuffer: Record "PaperTide Temp Invoice Buffer"): Code[20]
     var
         PurchHeader: Record "Purchase Header";
         PurchLine: Record "Purchase Line";
-        TempLine: Record "Temp Invoice Buffer";
-        AISetup: Record "AI Extraction Setup";
+        TempLine: Record "PaperTide Temp Invoice Buffer";
+        AISetup: Record "PaperTide AI Setup";
         LineNo: Integer;
         DefaultGLAccount: Code[20];
     begin
@@ -230,11 +230,11 @@ codeunit 50101 "Invoice Extraction"
 
     procedure ParseAndSaveToImportDoc(
         ExtractedData: JsonObject;
-        var ImportDocHeader: Record "Import Document Header")
+        var ImportDocHeader: Record "PaperTide Import Doc. Header")
     var
-        ImportDocLine: Record "Import Document Line";
+        ImportDocLine: Record "PaperTide Import Doc. Line";
         GLAccount: Record "G/L Account";
-        AISetup: Record "AI Extraction Setup";
+        AISetup: Record "PaperTide AI Setup";
         JsonToken: JsonToken;
         LinesArr: JsonArray;
         LineObj: JsonObject;
@@ -335,11 +335,11 @@ codeunit 50101 "Invoice Extraction"
 
     procedure CreateInvoiceFromImportDoc(EntryNo: Integer): Code[20]
     var
-        ImportDocHeader: Record "Import Document Header";
-        ImportDocLine: Record "Import Document Line";
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
+        ImportDocLine: Record "PaperTide Import Doc. Line";
         PurchHeader: Record "Purchase Header";
         PurchLine: Record "Purchase Line";
-        AISetup: Record "AI Extraction Setup";
+        AISetup: Record "PaperTide AI Setup";
         LineNo: Integer;
         DefaultGLAccount: Code[20];
     begin
@@ -440,7 +440,7 @@ codeunit 50101 "Invoice Extraction"
         PurchLine.Insert(true);
     end;
 
-    local procedure AttachInvoiceImageToPurchaseInvoice(ImportDocHeader: Record "Import Document Header"; PurchaseInvoiceNo: Code[20])
+    local procedure AttachInvoiceImageToPurchaseInvoice(ImportDocHeader: Record "PaperTide Import Doc. Header"; PurchaseInvoiceNo: Code[20])
     var
         DocumentAttachment: Record "Document Attachment";
         InStream: InStream;
@@ -480,12 +480,12 @@ codeunit 50101 "Invoice Extraction"
         DocumentAttachment.Insert(true);
     end;
 
-    procedure VerifyVendorData(var ImportDocHeader: Record "Import Document Header")
+    procedure VerifyVendorData(var ImportDocHeader: Record "PaperTide Import Doc. Header")
     var
         Vendor: Record Vendor;
         VendorBankAccount: Record "Vendor Bank Account";
         Messages: Text;
-        VerifStatus: Enum "Invoice Verification Status";
+        VerifStatus: Enum "PaperTide Inv. Verif. Status";
         BankFound: Boolean;
     begin
         VerifStatus := VerifStatus::"Not Checked";

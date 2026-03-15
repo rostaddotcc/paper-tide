@@ -1,17 +1,17 @@
-codeunit 50104 "PDF Converter"
+codeunit 50104 "PaperTide PDF Converter"
 {
     Access = Internal;
 
     var
-        PdfConversionNotEnabledErr: Label 'PDF conversion is not enabled in AI Extraction Setup.';
-        PdfConverterNotConfiguredErr: Label 'PDF Converter Endpoint is not configured in AI Extraction Setup.';
+        PdfConversionNotEnabledErr: Label 'PDF conversion is not enabled in PaperTide AI Setup.';
+        PdfConverterNotConfiguredErr: Label 'PDF Converter Endpoint is not configured in PaperTide AI Setup.';
         PdfConversionFailedErr: Label 'PDF conversion failed with status code: %1';
         PdfConversionTimeoutErr: Label 'PDF conversion request timed out.';
         PdfConversionEmptyResponseErr: Label 'PDF conversion returned empty response.';
 
     procedure ConvertPdfToImage(var PdfInStream: InStream; var ImageTempBlob: Codeunit "Temp Blob"): Boolean
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
         Base64Convert: Codeunit "Base64 Convert";
         HttpClient: HttpClient;
         HttpRequest: HttpRequestMessage;
@@ -81,7 +81,7 @@ codeunit 50104 "PDF Converter"
 
     procedure TestConnection(): Boolean
     var
-        Setup: Record "AI Extraction Setup";
+        Setup: Record "PaperTide AI Setup";
         HttpClient: HttpClient;
         HttpResponse: HttpResponseMessage;
     begin
@@ -98,7 +98,7 @@ codeunit 50104 "PDF Converter"
         exit(HttpResponse.IsSuccessStatusCode());
     end;
 
-    local procedure ValidateSetup(Setup: Record "AI Extraction Setup")
+    local procedure ValidateSetup(Setup: Record "PaperTide AI Setup")
     begin
         if not Setup."Enable PDF Conversion" then
             Error(PdfConversionNotEnabledErr);
