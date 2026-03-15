@@ -11,7 +11,7 @@
 
 ## Purpose
 
-Automate the creation of purchase invoices in Business Central by extracting data from invoice images using Alibaba Cloud's Qwen-VL AI vision model. The solution provides a preview workflow where users can review and edit AI-extracted data before committing to the database.
+Automate the creation of purchase invoices in Business Central by extracting data from invoice images using AI vision models (any OpenAI-compatible API). The solution provides a preview workflow where users can review and edit AI-extracted data before committing to the database.
 
 ## Business Value
 
@@ -28,7 +28,7 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 - **Batch Import** - Upload multiple invoice images with queue management
 - **Concurrency Control** - Process up to 3 images simultaneously
 - **Import Queue** - Review and manage all imported documents in a list
-- AI extraction via Qwen-VL API
+- AI extraction via OpenAI-compatible vision API
 - Preview page with original image display
 - Manual review and editing capability
 - Creation of standard Purchase Invoices
@@ -49,12 +49,12 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 ## Architecture Decisions
 
-### Why Qwen-VL?
+### Why OpenAI-Compatible API?
 
+- Provider-agnostic: works with OpenAI, DashScope, Azure OpenAI, Groq, Ollama, etc.
 - Strong vision capabilities for document understanding
-- Competitive pricing
 - JSON-structured output support
-- Good performance on invoice documents
+- Built-in provider presets for quick setup
 
 ### PDF Conversion via Gotenberg
 
@@ -105,7 +105,7 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 | ID | Name | Access | Purpose |
 |----|------|--------|---------|
-| 50100 | Qwen VL API | Internal | HTTP communication with AI service |
+| 50100 | AI Vision API | Internal | HTTP communication with AI service |
 | 50101 | Invoice Extraction | Internal | JSON parsing and invoice creation |
 | 50102 | Batch Processing Mgt | Internal | Queue management and concurrency control |
 | 50103 | Batch API Worker | Internal | Individual document processing |
@@ -191,7 +191,7 @@ If concurrency slot available (< 3 processing):
 Batch API Worker:
     - Read image from Image Blob
     - Convert to Base64
-    - Call Qwen-VL API
+    - Call AI Vision API
     - Parse JSON response
     - Save extracted data to Import Document Header/Line
     - Set status to "Ready" (success) or "Error" (failure)
@@ -267,7 +267,7 @@ If processing fails:
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                      AI SERVICE CALL                             │
-│  Qwen VL API Codeunit                                            │
+│  AI Vision API Codeunit                                           │
 │  - Read Image Blob → Convert to Base64                           │
 │  - HTTP POST to {API Base URL}/chat/completions                  │
 │  - Request body: model, messages (system prompt + image)         │
@@ -344,7 +344,7 @@ If processing fails:
 |-------|-----------|---------|-------------|
 | API Base URL | Text[250] | - | Valid HTTPS URL |
 | API Key | SecretText | - | Non-empty |
-| Model Name | Text[50] | qwen-vl-max | Any valid model |
+| Model Name | Text[50] | - | Any valid vision model |
 | Max Tokens | Integer | 2048 | 100-4096 |
 | Temperature | Decimal | 0.1 | 0.0-2.0 |
 | Request Timeout | Integer | 60000 | 10000-300000 |

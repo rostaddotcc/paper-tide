@@ -19,7 +19,7 @@ page 50100 "AI Extraction Setup"
                 field("API Base URL"; Rec."API Base URL")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specifies the base URL for the AI API (e.g., https://dashscope.aliyuncs.com/compatible-mode/v1 for Qwen-VL, https://api.openai.com/v1 for OpenAI)';
+                    ToolTip = 'Specifies the base URL for the AI API (e.g., https://api.openai.com/v1). Use Provider Presets for quick setup.';
                 }
                 field("API Key"; Rec."API Key")
                 {
@@ -30,7 +30,7 @@ page 50100 "AI Extraction Setup"
                 field("Model Name"; Rec."Model Name")
                 {
                     ApplicationArea = All;
-                    ToolTip = 'Specifies the model name (e.g., qwen-vl-max, gpt-4-vision-preview, gpt-4o)';
+                    ToolTip = 'Specifies the AI model name (e.g., gpt-4o, gpt-4-vision-preview). Use Provider Presets for quick setup.';
                 }
             }
 
@@ -131,9 +131,9 @@ page 50100 "AI Extraction Setup"
 
                 trigger OnAction()
                 var
-                    QwenVLAPI: Codeunit "Qwen VL API";
+                    AIVisionAPI: Codeunit "AI Vision API";
                 begin
-                    if QwenVLAPI.TestConnection() then
+                    if AIVisionAPI.TestConnection() then
                         Message('Connection successful! API is reachable.')
                     else
                         Message('Connection failed. Please check your settings.');
@@ -212,20 +212,20 @@ page 50100 "AI Extraction Setup"
                 ToolTip = 'Quick setup for popular AI providers';
                 Image = Setup;
 
-                action(SetQwenVL)
+                action(SetDashScope)
                 {
                     ApplicationArea = All;
-                    Caption = 'Use Qwen-VL (Alibaba)';
-                    ToolTip = 'Configure for Qwen-VL vision model from Alibaba Cloud';
+                    Caption = 'Use DashScope (Alibaba)';
+                    ToolTip = 'Configure for Alibaba Cloud DashScope API (OpenAI-compatible)';
                     Image = Action;
 
                     trigger OnAction()
                     begin
-                        if Confirm('Set up for Qwen-VL? This will update the API Base URL and Model Name.', false) then begin
+                        if Confirm('Set up for DashScope? This will update the API Base URL and Model Name.', false) then begin
                             Rec."API Base URL" := 'https://dashscope.aliyuncs.com/compatible-mode/v1';
                             Rec."Model Name" := 'qwen-vl-max';
                             Rec.Modify();
-                            Message('Qwen-VL preset applied. Please enter your API Key from Alibaba Cloud DashScope.');
+                            Message('DashScope preset applied. Please enter your API Key from Alibaba Cloud.');
                         end;
                     end;
                 }

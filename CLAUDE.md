@@ -17,12 +17,12 @@ Ctrl+F5             # Publish to sandbox
 **Object ID Range:** 50100-50149
 **Feature:** `NoImplicitWith` enabled
 
-This extension extracts invoice data from images/PDFs using Qwen-VL AI with a preview/approval workflow before creating Purchase Invoices. Includes fraud detection via cross-validation of extracted data against known vendor records.
+This extension extracts invoice data from images/PDFs using AI vision models (any OpenAI-compatible API) with a preview/approval workflow before creating Purchase Invoices. Includes fraud detection via cross-validation of extracted data against known vendor records.
 
 ### Core Flow
 
 ```
-Upload Image/PDF → (PDF: buffer original + Gotenberg conversion) → Batch Queue → Qwen-VL API → Parse JSON → Vendor Lookup → Verify → Preview → Create Purchase Invoice
+Upload Image/PDF → (PDF: buffer original + Gotenberg conversion) → Batch Queue → AI Vision API → Parse JSON → Vendor Lookup → Verify → Preview → Create Purchase Invoice
 ```
 
 ### Key Components
@@ -32,7 +32,7 @@ Upload Image/PDF → (PDF: buffer original + Gotenberg conversion) → Batch Que
 | `AI Extraction Setup` (Table 50100) | Singleton config: API URL, Key, Model, Default G/L Account |
 | `Import Document Header/Line` | Persistent queue for batch processing |
 | `Vendor Name Mapping` (Table 50104) | Learned vendor name aliases for automatic matching |
-| `Qwen VL API` (Codeunit 50100) | HTTP client for AI service |
+| `AI Vision API` (Codeunit 50100) | HTTP client for AI service |
 | `Invoice Extraction` (Codeunit 50101) | JSON parsing, vendor lookup, verification, invoice creation |
 | `Batch Processing Mgt` (Codeunit 50102) | Concurrency control (max 3 concurrent) |
 | `PDF Converter` (Codeunit 50104) | PDF-to-image conversion via Gotenberg |
@@ -67,7 +67,7 @@ Pending → Processing → Ready → Created
 - 50104: Vendor Name Mapping (learned vendor aliases)
 
 ### Codeunits
-- 50100: Qwen VL API (HTTP communication)
+- 50100: AI Vision API (HTTP communication)
 - 50101: Invoice Extraction (parsing, vendor lookup, verification, creation logic)
 - 50102: Batch Processing Mgt (queue management)
 - 50103: Batch API Worker (individual processing)
@@ -88,7 +88,7 @@ Pending → Processing → Ready → Created
 ## File Organization
 
 ```
-API/                 # QwenVLAPI, Invoice Extraction, PDF Converter codeunits
+API/                 # AIVisionAPI, Invoice Extraction, PDF Converter codeunits
 BatchProcessing/     # Queue management, upload UI, import documents, preview pages
 InvoiceProcessing/   # Temp buffer, preview subforms
 Pages/               # Purchase Invoice list extension

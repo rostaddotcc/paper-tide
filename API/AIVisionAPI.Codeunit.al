@@ -1,4 +1,4 @@
-codeunit 50100 "Qwen VL API"
+codeunit 50100 "AI Vision API"
 {
     Access = Internal;
 

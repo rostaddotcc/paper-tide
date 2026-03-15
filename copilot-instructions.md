@@ -5,7 +5,7 @@ This document contains coding patterns, conventions, and architectural guideline
 ## Project Overview
 
 **Extension Name:** AI Invoice Extractor  
-**Purpose:** AI-driven OCR for purchase invoices using Qwen-VL  
+**Purpose:** AI-driven OCR for purchase invoices using OpenAI-compatible vision APIs
 **Object ID Range:** 50100-50149  
 **Runtime:** 14.0  
 **Features:** `NoImplicitWith` enabled
@@ -172,7 +172,7 @@ page 50100 "Page Name"
 | Type | Pattern | Example |
 |------|---------|---------|
 | Record | Singular noun | `ImportDocHeader`, `PurchHeader` |
-| Codeunit | Same as object | `InvoiceExtraction`, `QwenVLAPI` |
+| Codeunit | Same as object | `InvoiceExtraction`, `AIVisionAPI` |
 | JsonObject | "Json" prefix + descriptive | `ExtractedData`, `ResponseJson` |
 | JsonToken | "Token" suffix | `ContentToken`, `JsonToken` |
 | Counter/Index | Descriptive + type | `LineIndex`, `ActiveCount` |
@@ -218,7 +218,7 @@ end;
 ```al
 try
     // Risky operation (API call, file operation, etc.)
-    if not QwenVLAPI.ExtractFromImage(Media, ExtractedData) then begin
+    if not AIVisionAPI.ExtractFromImage(Media, ExtractedData) then begin
         MarkAsError(ImportDocHeader, 'Failed to extract data from image');
         exit;
     end;
@@ -519,7 +519,7 @@ table 50100 "AI Extraction Setup"
         if not Get() then begin
             Init();
             // Set defaults
-            "Model Name" := 'qwen-vl-max';
+            "Model Name" := 'gpt-4o';
             "Max Tokens" := 2048;
             Temperature := 0.1;
             Insert();
@@ -576,7 +576,7 @@ Image Upload → Import Document Header (Pending)
                     ↓
          Batch Processing Mgt (concurrency control)
                     ↓
-         Batch API Worker → Qwen VL API
+         Batch API Worker → AI Vision API
                     ↓
          ParseAndSaveToImportDoc → Import Document Header (Ready)
                     ↓
@@ -589,7 +589,7 @@ Image Upload → Import Document Header (Pending)
 ```
 Image Upload → Temp Invoice Buffer (temporary preview)
                     ↓
-         Qwen VL API → ParseAndFillBuffer
+         AI Vision API → ParseAndFillBuffer
                     ↓
          User Review → CreatePurchaseInvoice
                     ↓
@@ -618,7 +618,7 @@ Image Upload → Temp Invoice Buffer (temporary preview)
 ```
 API/
   - InvoiceExtraction.Codeunit.al    # Core extraction logic
-  - QwenVLAPI.Codeunit.al            # API communication
+  - AIVisionAPI.Codeunit.al           # API communication
 
 BatchProcessing/
   - BatchAPIWorker.Codeunit.al       # Individual document processing

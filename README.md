@@ -1,10 +1,10 @@
 # AI Invoice Extractor for Business Central
 
-A Per-Tenant Extension (PTE) for Business Central that uses AI (Qwen-VL) to extract invoice data from images and PDF files, with a preview and approval workflow.
+A Per-Tenant Extension (PTE) for Business Central that uses AI vision models to extract invoice data from images and PDF files, with a preview and approval workflow. Compatible with any OpenAI-compatible API (OpenAI, DashScope, Azure OpenAI, Groq, Ollama, etc.).
 
 ## Features
 
-- **AI-Powered OCR** - Extract invoice data using Qwen-VL vision model
+- **AI-Powered OCR** - Extract invoice data using any OpenAI-compatible vision model
 - **PDF Support** - Upload PDF invoices with automatic conversion to images via Gotenberg
 - **Multi-Page PDF Attachment** - Original PDF (all pages) attached to created Purchase Invoice
 - **Batch Import** - Upload and process multiple invoice images/PDFs simultaneously
@@ -24,7 +24,7 @@ A Per-Tenant Extension (PTE) for Business Central that uses AI (Qwen-VL) to extr
 ## Requirements
 
 - Business Central 2024 Wave 2 (v27.4) or later
-- Qwen-VL API access (Alibaba Cloud DashScope or compatible)
+- AI vision API access (any OpenAI-compatible provider: OpenAI, DashScope, Azure OpenAI, Groq, Ollama, etc.)
 - Gotenberg service (for PDF support, optional)
 - AL Language extension for VS Code
 
@@ -62,9 +62,9 @@ After publishing, configure the extension:
 
 | Field | Example Value | Description |
 |-------|---------------|-------------|
-| API Base URL | `https://dashscope.aliyuncs.com/compatible-mode/v1` | Qwen-VL API endpoint |
-| API Key | `sk-xxxxxxxx` | Your API key from Alibaba Cloud |
-| Model Name | `qwen-vl-max` | Model identifier |
+| API Base URL | `https://api.openai.com/v1` | AI API endpoint (OpenAI-compatible) |
+| API Key | `sk-xxxxxxxx` | Your API key from your AI provider |
+| Model Name | `gpt-4o` | Vision model identifier |
 | Max Tokens | `2048` | Response length limit |
 | Temperature | `0.1` | AI creativity (0.0 = strict) |
 | Request Timeout | `60000` | API request timeout in milliseconds |
@@ -232,9 +232,9 @@ User selects multiple images/PDFs
         |
 [Batch API Worker] -> Process each image
         |
-[Qwen VL API Codeunit] -> HTTP POST with base64 image
+[AI Vision API Codeunit] -> HTTP POST with base64 image
         |
-Qwen-VL AI processes image
+AI vision model processes image
         |
 [Invoice Extraction Codeunit] -> Parse JSON + Vendor Lookup + Verify
         |
@@ -284,7 +284,7 @@ Pending -> Processing -> Ready -> Created
 | Import Document Header | Table | 50102 | Persistent queue for batch processing |
 | Import Document Line | Table | 50103 | Extracted line items |
 | Vendor Name Mapping | Table | 50104 | Learned vendor name aliases |
-| Qwen VL API | Codeunit | 50100 | HTTP client for AI service |
+| AI Vision API | Codeunit | 50100 | HTTP client for AI service |
 | Invoice Extraction | Codeunit | 50101 | Parser, vendor lookup, verification, invoice creation |
 | Batch Processing Mgt | Codeunit | 50102 | Queue and concurrency management |
 | Batch API Worker | Codeunit | 50103 | Individual document processor |
@@ -300,7 +300,7 @@ Pending -> Processing -> Ready -> Created
 ### "Setup is not configured"
 - Go to **AI Extraction Setup** page (search for it)
 - Fill in **API Base URL** and **API Key**
-- Fill in **Model Name** (e.g., `qwen-vl-max`)
+- Fill in **Model Name** (e.g., `gpt-4o`) or use a Provider Preset
 - Click **"Test Connection"**
 
 ### "HTTP request failed"
@@ -358,7 +358,9 @@ Pending -> Processing -> Ready -> Created
 
 ## Future Enhancements
 
+- [ ] **License Key Management** - License key validation with expiration time for commercial PTE distribution
 - [ ] **Purchase Order Linking** - Automatically link invoices to existing POs via extracted PO number and "Get Receipt Lines"
+- [ ] **VIES VAT Validation** - Validate vendor VAT numbers against the EU VIES service at import, using vendor card Country Code + VAT No.
 - [ ] **Azure File Storage Import** - Connect to Azure File Storage for automated invoice import
 - [ ] Confidence scores per extracted field
 - [ ] Highlight low-confidence fields for review

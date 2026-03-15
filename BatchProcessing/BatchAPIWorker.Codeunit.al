@@ -47,9 +47,9 @@ codeunit 50103 "Batch API Worker"
     [TryFunction]
     local procedure ExtractFromImageWithErrorHandling(MediaId: Guid; var ExtractedData: JsonObject)
     var
-        QwenVLAPI: Codeunit "Qwen VL API";
+        AIVisionAPI: Codeunit "AI Vision API";
     begin
-        if not QwenVLAPI.ExtractFromImage(MediaId, ExtractedData) then
+        if not AIVisionAPI.ExtractFromImage(MediaId, ExtractedData) then
             Error('Failed to extract data from image');
     end;
 

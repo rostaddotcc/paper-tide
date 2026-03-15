@@ -14,7 +14,7 @@ table 50100 "AI Extraction Setup"
         {
             Caption = 'API Base URL';
             DataClassification = CustomerContent;
-            ToolTip = 'Specifies the base URL for the AI API (e.g., https://dashscope.aliyuncs.com/compatible-mode/v1 for Qwen-VL, https://api.openai.com/v1 for OpenAI)';
+            ToolTip = 'Specifies the base URL for the AI API (e.g., https://api.openai.com/v1). Use Provider Presets for quick setup.';
         }
         field(3; "API Key"; Text[250])
         {
@@ -27,7 +27,7 @@ table 50100 "AI Extraction Setup"
         {
             Caption = 'Model Name';
             DataClassification = CustomerContent;
-            ToolTip = 'Specifies the model name (e.g., qwen-vl-max, gpt-4-vision-preview, gpt-4o)';
+            ToolTip = 'Specifies the AI model name (e.g., gpt-4o, gpt-4-vision-preview). Use Provider Presets for quick setup.';
         }
         field(5; "Max Tokens"; Integer)
         {

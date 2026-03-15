@@ -1,0 +1,9 @@
+# Build output
+.alpackages/
+*.app
+
+# VS Code
+.vscode/
+
+# License key tools (contains secret salt)
+tools/

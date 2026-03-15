@@ -21,7 +21,7 @@ permissionset 50100 "AI Invoice Extractor"
         page "Invoice Preview Subform V2" = X,
         page "Invoice Image FactBox V2" = X,
         page "Vendor Name Mapping List" = X,
-        codeunit "Qwen VL API" = X,
+        codeunit "AI Vision API" = X,
         codeunit "Invoice Extraction" = X,
         codeunit "Batch Processing Mgt" = X,
         codeunit "Batch API Worker" = X;
