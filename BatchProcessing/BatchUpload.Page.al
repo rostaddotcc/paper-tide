@@ -11,10 +11,11 @@ page 50104 "Batch Upload"
     {
         area(Content)
         {
-            group(Instructions)
+            group(DropZone)
             {
-                Caption = 'Instructions';
-                InstructionalText = 'Upload one or more invoice images (JPG, JPEG, PNG) or PDF files. The AI will extract data from each document. You can review and edit each invoice before creating it.';
+                Caption = 'Upload';
+                InstructionalText = 'Drag and drop invoice files here, or click "Select Files" to browse. Supports JPG, JPEG, PNG and PDF.';
+                FileUploadAction = UploadFiles;
             }
 
             group(QueueStatus)
@@ -63,19 +64,40 @@ page 50104 "Batch Upload"
     {
         area(Processing)
         {
-            action(UploadFiles)
+            fileUploadAction(UploadFiles)
             {
-                ApplicationArea = All;
                 Caption = 'Select Files';
-                ToolTip = 'Select invoice images to upload';
+                ToolTip = 'Select one or more invoice images or PDF files to upload';
                 Image = Import;
-                Promoted = true;
-                PromotedCategory = Process;
-                PromotedIsBig = true;
+                AllowMultipleFiles = true;
+                AllowedFileExtensions = '.jpg', '.jpeg', '.png', '.pdf';
 
-                trigger OnAction()
+                trigger OnAction(Files: List of [FileUpload])
+                var
+                    CurrentFile: FileUpload;
+                    BatchProcessingMgt: Codeunit "Batch Processing Mgt";
+                    FileManagement: Codeunit "File Management";
+                    InStream: InStream;
+                    FileName: Text;
+                    FileExtension: Text;
+                    UploadCount: Integer;
                 begin
-                    UploadFilesWithDialog();
+                    foreach CurrentFile in Files do begin
+                        FileName := CurrentFile.FileName();
+                        FileExtension := LowerCase(FileManagement.GetExtension(FileName));
+
+                        if BatchProcessingMgt.IsValidUploadExtension(FileExtension) then begin
+                            CurrentFile.CreateInStream(InStream);
+                            if ImportSingleFile(InStream, FileName) then
+                                UploadCount += 1;
+                        end;
+                    end;
+
+                    if UploadCount > 0 then begin
+                        Message('%1 file(s) queued for processing.', UploadCount);
+                        UpdateStatusCounts();
+                        StartAutoProcessing();
+                    end;
                 end;
             }
             action(ViewQueue)
@@ -121,6 +143,15 @@ page 50104 "Batch Upload"
                 end;
             }
         }
+        area(Promoted)
+        {
+            actionref(ViewQueueRef; ViewQueue)
+            {
+            }
+            actionref(ProcessPendingRef; ProcessPending)
+            {
+            }
+        }
     }
 
     trigger OnOpenPage()
@@ -131,42 +162,6 @@ page 50104 "Batch Upload"
     trigger OnAfterGetRecord()
     begin
         UpdateStatusCounts();
-    end;
-
-    local procedure UploadFilesWithDialog()
-    var
-        TempBlob: Codeunit "Temp Blob";
-        FileManagement: Codeunit "File Management";
-        BatchProcessingMgt: Codeunit "Batch Processing Mgt";
-        InStream: InStream;
-        FileName: Text;
-        FileExtension: Text;
-        UploadCount: Integer;
-    begin
-        // Upload first file
-        if not UploadIntoStream('Select Invoice File', '', 'Supported Files (*.jpg;*.jpeg;*.png;*.pdf)|*.jpg;*.jpeg;*.png;*.pdf|Image Files (*.jpg;*.jpeg;*.png)|*.jpg;*.jpeg;*.png|PDF Files (*.pdf)|*.pdf', FileName, InStream) then
-            exit;
-
-        repeat
-            FileExtension := LowerCase(FileManagement.GetExtension(FileName));
-
-            if BatchProcessingMgt.IsValidUploadExtension(FileExtension) then begin
-                if ImportSingleFile(InStream, FileName) then
-                    UploadCount += 1;
-            end;
-
-            // Ask for next file
-            Clear(InStream);
-            FileName := '';
-        until not Confirm('Upload another file?', true);
-
-        if UploadCount > 0 then begin
-            Message('%1 file(s) queued for processing.', UploadCount);
-            UpdateStatusCounts();
-
-            // Auto-start processing
-            StartAutoProcessing();
-        end;
     end;
 
     local procedure ImportSingleFile(InStream: InStream; FileName: Text): Boolean
@@ -224,7 +219,6 @@ page 50104 "Batch Upload"
     var
         BatchProcessingMgt: Codeunit "Batch Processing Mgt";
     begin
-        // Start processing pending documents with concurrency control
         BatchProcessingMgt.StartProcessingWithConcurrency();
     end;
 
