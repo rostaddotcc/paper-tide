@@ -45,6 +45,7 @@ codeunit 50103 "PaperTide Batch API Worker"
         // Mark as ready for review
         ImportDocHeader.Status := ImportDocHeader.Status::Ready;
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Completed;
+        ImportDocHeader."Processing Started At" := 0DT;
         ImportDocHeader.Modify();
 
         // Try to process next pending document
@@ -64,6 +65,7 @@ codeunit 50103 "PaperTide Batch API Worker"
     begin
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Error;
         ImportDocHeader."Error Message" := CopyStr(ErrorMsg, 1, 2048);
+        ImportDocHeader."Processing Started At" := 0DT;
         ImportDocHeader.Modify();
 
         // Try to process next pending document even if this one failed

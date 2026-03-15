@@ -198,6 +198,15 @@ table 50100 "PaperTide AI Setup"
             MinValue = 0;
             MaxValue = 3650;
         }
+        field(121; "Processing Timeout (min)"; Integer)
+        {
+            Caption = 'Processing Timeout (min)';
+            DataClassification = CustomerContent;
+            ToolTip = 'Documents stuck in Processing status longer than this will be automatically reset to Error. Set to 0 to disable timeout detection.';
+            InitValue = 5;
+            MinValue = 0;
+            MaxValue = 60;
+        }
     }
 
     keys
@@ -451,6 +460,7 @@ table 50100 "PaperTide AI Setup"
             Temperature := 0.1;
             "Request Timeout (ms)" := 60000;
             "Max Concurrency" := 3;
+            "Processing Timeout (min)" := 5;
             Insert();
         end;
         exit(Rec);

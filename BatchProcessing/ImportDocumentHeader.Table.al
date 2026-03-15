@@ -174,6 +174,12 @@ table 50102 "PaperTide Import Doc. Header"
             DataClassification = SystemMetadata;
             ToolTip = 'Details of verification warnings or issues found';
         }
+        field(33; "Processing Started At"; DateTime)
+        {
+            Caption = 'Processing Started At';
+            DataClassification = SystemMetadata;
+            ToolTip = 'When processing started, used for stale document timeout detection';
+        }
     }
 
     keys

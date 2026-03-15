@@ -5,6 +5,7 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
     var
         MaxConcurrency: Integer;
         ConcurrencyErr: Label 'Cannot start processing: maximum concurrency limit reached.';
+        StaleDocResetMsg: Label 'Document %1 (%2) was stuck in Processing for over %3 minutes and has been reset to Error.';
 
     local procedure GetMaxConcurrency(): Integer
     var
@@ -15,6 +16,15 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
         exit(3);
     end;
 
+    local procedure GetProcessingTimeoutMinutes(): Integer
+    var
+        Setup: Record "PaperTide AI Setup";
+    begin
+        if Setup.Get() and (Setup."Processing Timeout (min)" > 0) then
+            exit(Setup."Processing Timeout (min)");
+        exit(5);
+    end;
+
     procedure StartProcessingWithConcurrency()
     var
         ImportDocHeader: Record "PaperTide Import Doc. Header";
@@ -22,7 +32,13 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
         SlotsAvailable: Integer;
         i: Integer;
     begin
+        // Reset any stale documents first to free up slots
+        ResetStaleDocuments();
+
         MaxConcurrency := GetMaxConcurrency();
+
+        // Lock table to prevent race condition when multiple sessions check concurrency simultaneously
+        ImportDocHeader.LockTable();
 
         // Count currently processing documents
         ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Processing);
@@ -53,6 +69,9 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
     begin
         MaxConcurrency := GetMaxConcurrency();
 
+        // Lock table to prevent race condition
+        ImportDocHeader.LockTable();
+
         // Check concurrency limit
         ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Processing);
         ActiveCount := ImportDocHeader.Count();
@@ -72,13 +91,13 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
     var
         BatchAPIWorker: Codeunit "PaperTide Batch API Worker";
     begin
-        // Update status to processing
+        // Update status to processing with timestamp
         ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Processing;
+        ImportDocHeader."Processing Started At" := CurrentDateTime();
         ImportDocHeader.Modify();
 
-        // Start processing (in real implementation, this could be async)
-        // For now, we process synchronously but with concurrency control
-        Commit(); // Commit status change before processing
+        // Commit status change before processing so other sessions see the slot as taken
+        Commit();
 
         BatchAPIWorker.ProcessDocument(ImportDocHeader."Entry No.");
     end;
@@ -91,11 +110,52 @@ codeunit 50102 "PaperTide Batch Processing Mgt"
             ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Pending;
             ImportDocHeader.Status := ImportDocHeader.Status::Pending;
             ImportDocHeader."Error Message" := '';
+            ImportDocHeader."Processing Started At" := 0DT;
             ImportDocHeader.Modify();
 
             // Try to start processing immediately
             StartProcessingWithConcurrency();
         end;
+    end;
+
+    procedure ResetStaleDocuments()
+    var
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
+        TimeoutMinutes: Integer;
+        TimeoutThreshold: DateTime;
+    begin
+        TimeoutMinutes := GetProcessingTimeoutMinutes();
+        if TimeoutMinutes = 0 then
+            exit; // Timeout detection disabled
+
+        TimeoutThreshold := CurrentDateTime() - (TimeoutMinutes * 60 * 1000); // Convert minutes to milliseconds
+
+        ImportDocHeader.SetRange("Processing Status", ImportDocHeader."Processing Status"::Processing);
+        if ImportDocHeader.FindSet() then
+            repeat
+                if (ImportDocHeader."Processing Started At" <> 0DT) and
+                   (ImportDocHeader."Processing Started At" < TimeoutThreshold)
+                then begin
+                    ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Error;
+                    ImportDocHeader."Error Message" := StrSubstNo(StaleDocResetMsg,
+                        ImportDocHeader."Entry No.", ImportDocHeader."File Name", TimeoutMinutes);
+                    ImportDocHeader."Processing Started At" := 0DT;
+                    ImportDocHeader.Modify();
+                end;
+            until ImportDocHeader.Next() = 0;
+    end;
+
+    procedure ResetStuckDocument(EntryNo: Integer)
+    var
+        ImportDocHeader: Record "PaperTide Import Doc. Header";
+    begin
+        if ImportDocHeader.Get(EntryNo) then
+            if ImportDocHeader."Processing Status" = ImportDocHeader."Processing Status"::Processing then begin
+                ImportDocHeader."Processing Status" := ImportDocHeader."Processing Status"::Error;
+                ImportDocHeader."Error Message" := 'Manually reset from stuck Processing status.';
+                ImportDocHeader."Processing Started At" := 0DT;
+                ImportDocHeader.Modify();
+            end;
     end;
 
     procedure GetActiveProcessingCount(): Integer

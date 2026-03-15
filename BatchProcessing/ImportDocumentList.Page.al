@@ -182,6 +182,26 @@ page 50105 "PaperTide Import Documents"
                     end;
                 end;
             }
+            action(ResetStuck)
+            {
+                ApplicationArea = All;
+                Caption = 'Reset Stuck';
+                ToolTip = 'Manually reset a document that is stuck in Processing status';
+                Image = ResetStatus;
+                Promoted = true;
+                PromotedCategory = Process;
+                Enabled = IsStuck;
+
+                trigger OnAction()
+                var
+                    BatchProcessingMgt: Codeunit "PaperTide Batch Processing Mgt";
+                begin
+                    if Confirm('Reset document %1 from stuck Processing status? It will be marked as Error and can be retried.', false, Rec."File Name") then begin
+                        BatchProcessingMgt.ResetStuckDocument(Rec."Entry No.");
+                        CurrPage.Update();
+                    end;
+                end;
+            }
             action(RefreshStatus)
             {
                 ApplicationArea = All;
@@ -239,6 +259,7 @@ page 50105 "PaperTide Import Documents"
         CanCreateInvoice := (Rec.Status = Rec.Status::Ready) and
                            (Rec."Created Invoice No." = '');
         HasError := Rec."Processing Status" = Rec."Processing Status"::Error;
+        IsStuck := Rec."Processing Status" = Rec."Processing Status"::Processing;
         NotCreated := (Rec.Status <> Rec.Status::Created) and
                       (Rec."Created Invoice No." = '');
 
@@ -279,6 +300,7 @@ page 50105 "PaperTide Import Documents"
         CanReview: Boolean;
         CanCreateInvoice: Boolean;
         HasError: Boolean;
+        IsStuck: Boolean;
         NotCreated: Boolean;
         StatusStyle: Text;
         VerificationStyle: Text;

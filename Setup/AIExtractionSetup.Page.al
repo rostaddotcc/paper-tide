@@ -58,6 +58,11 @@ page 50100 "PaperTide AI Setup"
                     ApplicationArea = All;
                     ToolTip = 'Maximum number of documents processed simultaneously';
                 }
+                field("Processing Timeout (min)"; Rec."Processing Timeout (min)")
+                {
+                    ApplicationArea = All;
+                    ToolTip = 'Documents stuck in Processing longer than this are automatically reset to Error. Set to 0 to disable.';
+                }
             }
 
             group(Defaults)
