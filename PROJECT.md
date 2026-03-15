@@ -1,8 +1,8 @@
-# AI Invoice Extractor - Project Documentation
+# Paper Tide - Project Documentation
 
 ## Project Overview
 
-**Project Name:** AI Invoice Extractor  
+**Project Name:** Paper Tide  
 **Type:** Per-Tenant Extension (PTE)  
 **Version:** 1.0.0.0  
 **Target Platform:** Microsoft Dynamics 365 Business Central  
@@ -121,7 +121,7 @@ Automate the creation of purchase invoices in Business Central by extracting dat
 
 | ID | Name | Permissions |
 |----|------|-------------|
-| 50100 | AI Invoice Extractor | Full access to all objects |
+| 50100 | Paper Tide | Full access to all objects |
 
 ## AI GL Account Suggestion Feature
 

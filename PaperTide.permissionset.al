@@ -1,7 +1,7 @@
-permissionset 50100 "AI Invoice Extractor"
+permissionset 50100 "Paper Tide"
 {
     Assignable = true;
-    Caption = 'AI Invoice Extractor';
+    Caption = 'Paper Tide';
 
     Permissions =
         tabledata "AI Extraction Setup" = RIMD,

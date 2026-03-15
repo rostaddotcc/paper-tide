@@ -1,10 +1,10 @@
-# AI Invoice Extractor - Copilot Instructions
+# Paper Tide - Copilot Instructions
 
 This document contains coding patterns, conventions, and architectural guidelines for working with this Business Central AL extension codebase.
 
 ## Project Overview
 
-**Extension Name:** AI Invoice Extractor  
+**Extension Name:** Paper Tide  
 **Purpose:** AI-driven OCR for purchase invoices using OpenAI-compatible vision APIs
 **Object ID Range:** 50100-50149  
 **Runtime:** 14.0  

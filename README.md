@@ -1,4 +1,4 @@
-# AI Invoice Extractor for Business Central
+# Paper Tide for Business Central
 
 A Per-Tenant Extension (PTE) for Business Central that uses AI vision models to extract invoice data from images and PDF files, with a preview and approval workflow. Compatible with any OpenAI-compatible API (OpenAI, DashScope, Azure OpenAI, Groq, Ollama, etc.).
 
@@ -16,6 +16,7 @@ A Per-Tenant Extension (PTE) for Business Central that uses AI vision models to 
 - **Vendor Name Learning** - System learns vendor name aliases from user corrections for automatic future matching
 - **Multi-Field Vendor Matching** - Match vendors by VAT Registration No., bank account/IBAN, name mapping, or name
 - **Fraud Detection** - Automated verification of VAT numbers and bank accounts against known vendor data
+- **Provider Agnostic** - Built-in presets for OpenAI, DashScope, Azure OpenAI, Groq, Ollama, LocalAI
 - **Configurable** - Set up your own API endpoint, model, system prompt, and default G/L account
 - **Secure** - API keys stored with masked display
 - **Status Tracking** - Track documents from Pending -> Processing -> Ready -> Created
@@ -333,10 +334,15 @@ Pending -> Processing -> Ready -> Created
 - In Extension Management, click Configure -> Allow HttpClient Requests
 
 ### Cannot see AI Extraction Setup page
-- Ensure you have the **"AI Invoice Extractor"** permission set assigned
-- Go to Users -> select your user -> Permission Sets -> add "AI Invoice Extractor"
+- Ensure you have the **"Paper Tide"** permission set assigned
+- Go to Users -> select your user -> Permission Sets -> add "Paper Tide"
 
 ## Changelog
+
+### v1.0.1.1 (2026-03-15)
+- **Provider Agnostic** - Renamed internal API codeunit from Qwen VL API to AI Vision API; removed all provider-specific references
+- **Provider Presets** - Built-in quick setup for OpenAI, DashScope (Alibaba), Azure OpenAI, Groq, Ollama, LocalAI
+- Generalized tooltips and documentation for multi-provider compatibility
 
 ### v1.0.1.0 (2026-03-15)
 - **PO Number Extraction** - AI extracts purchase order references from invoices, stored as Vendor Order No.
@@ -358,7 +364,6 @@ Pending -> Processing -> Ready -> Created
 
 ## Future Enhancements
 
-- [ ] **License Key Management** - License key validation with expiration time for commercial PTE distribution
 - [ ] **Purchase Order Linking** - Automatically link invoices to existing POs via extracted PO number and "Get Receipt Lines"
 - [ ] **VIES VAT Validation** - Validate vendor VAT numbers against the EU VIES service at import, using vendor card Country Code + VAT No.
 - [ ] **Azure File Storage Import** - Connect to Azure File Storage for automated invoice import
@@ -381,7 +386,7 @@ For issues or questions, contact your Business Central partner or development te
 
 ---
 
-**Version:** 1.0.1.0
+**Version:** 1.0.1.1
 **Compatible with:** Business Central 27.4+
 **Runtime:** 14.0+
 **Last Updated:** 2026-03-15
