@@ -398,6 +398,7 @@ If duplicate found: Error message displayed, creation blocked.
 
 - **Vendor Auto Coding Setup** - Per-vendor configuration for auto coding preferences: default line type, preferred G/L accounts, dimension defaults, classification rules
 - **Email Inbox Monitoring** - REST-based email endpoint for automatic attachment import with job queue
+- **Discard Comment** - When discarding an imported invoice, prompt for a comment/reason that is stored and visible in the Import Documents queue list
 
 ### Version 2.0
 
